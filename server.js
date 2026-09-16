@@ -325,8 +325,7 @@ async function generatePageImage(payload, story, page, index) {
           model: "gpt-image-1-mini",
           quality: "low",
           size: "1024x1024",
-          output_format: "png",
-          input_fidelity: "high"
+          output_format: "png"
         }
       ]
     })

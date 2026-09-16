@@ -169,6 +169,7 @@ Rules:
 - English should be easy enough for the child's age.
 - The story must be grounded in the uploaded drawing and diary text. If the diary mentions a specific subject, place, or event, make that the center of the story.
 - If the drawing and diary seem different, prioritize the diary text and explain the drawing as part of that memory.
+- Treat the uploaded child drawing as the heart of the book. Mention visible details from the drawing when possible, and make the child's drawing feel like the source of the story rather than a generic prompt.
 - Avoid violence, fear, commercial content, and addictive hooks.
 - If story mode is open-ended, stop at an exciting but gentle moment and invite the child to imagine or draw the next scene.
 - Keep it short: 4 to 6 pages.

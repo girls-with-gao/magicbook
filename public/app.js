@@ -7,6 +7,8 @@ const loading = document.querySelector("#loading");
 const book = document.querySelector("#book");
 const pageLabel = document.querySelector("#page-label");
 const storyTitle = document.querySelector("#story-title");
+const pageArtWrap = document.querySelector("#page-art-wrap");
+const pageArt = document.querySelector("#page-art");
 const pageKo = document.querySelector("#page-ko");
 const pageEn = document.querySelector("#page-en");
 const storyNote = document.querySelector("#story-note");
@@ -19,6 +21,7 @@ const printBook = document.querySelector("#print-book");
 
 let currentStory = null;
 let currentPage = 0;
+let uploadedImageDataUrl = "";
 
 function getSelected(group) {
   return document.querySelector(`[data-name="${group}"] .selected`)?.dataset.value;
@@ -57,16 +60,23 @@ function setBusy(isBusy) {
 function renderStory() {
   if (!currentStory) return;
   const pages = currentStory.pages || [];
-  const page = pages[currentPage] || { ko: "", en: "" };
+  const totalPages = pages.length + 1;
+  const isCover = currentPage === 0;
+  const storyPage = pages[currentPage - 1] || { ko: "", en: "" };
 
   storyTitle.textContent = currentStory.title || "매직북";
-  pageLabel.textContent = `${currentPage + 1} / ${pages.length}`;
-  pageKo.textContent = page.ko;
-  pageEn.textContent = page.en;
+  pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
+  pageKo.textContent = isCover
+    ? `${currentStory.title || "매직북"}\n\n이 책은 아이가 직접 그린 그림에서 시작됐어요.`
+    : storyPage.ko;
+  pageEn.textContent = isCover ? currentStory.summary || "" : storyPage.en;
   storyNote.textContent = currentStory.note || "";
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
-  nextPage.disabled = currentPage === pages.length - 1;
+  nextPage.disabled = currentPage === totalPages - 1;
+  pageArtWrap.hidden = !uploadedImageDataUrl;
+  pageArt.src = uploadedImageDataUrl;
+  book.classList.toggle("cover-page", isCover);
 
   promptList.innerHTML = "";
   (currentStory.prompts || []).forEach((prompt) => {
@@ -102,6 +112,7 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const imageDataUrl = await fileToDataUrl(imageInput.files?.[0]);
+    uploadedImageDataUrl = imageDataUrl;
     const payload = {
       imageDataUrl,
       childName: document.querySelector("#child-name").value.trim(),
@@ -140,7 +151,7 @@ prevPage.addEventListener("click", () => {
 });
 
 nextPage.addEventListener("click", () => {
-  currentPage = Math.min((currentStory?.pages?.length || 1) - 1, currentPage + 1);
+  currentPage = Math.min((currentStory?.pages?.length || 0), currentPage + 1);
   renderStory();
 });
 

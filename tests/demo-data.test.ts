@@ -25,4 +25,13 @@ describe("createDemoStory", () => {
     expect(story.offlinePromptKo).toContain("그려");
     expect(story.offlinePromptEn.length).toBeGreaterThan(0);
   });
+
+  it("아이 이름의 받침에 맞는 한국어 조사를 사용한다", () => {
+    expect(story.titleKo).toBe("수민이와 조개의 비밀");
+    expect(story.pages[0].ko).toContain("수민이는 엄마와");
+
+    const vowelNameStory = createDemoStory({ nickname: "지우", age: 7 });
+    expect(vowelNameStory.titleKo).toBe("지우와 조개의 비밀");
+    expect(vowelNameStory.pages[0].ko).toContain("지우는 엄마와");
+  });
 });

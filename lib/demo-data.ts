@@ -1,5 +1,20 @@
 import type { BilingualStory, DrawingAnalysis } from "./story-types";
 
+function hasKoreanFinalConsonant(value: string) {
+  const lastCharacter = value.trim().at(-1);
+
+  if (!lastCharacter) return false;
+
+  const code = lastCharacter.charCodeAt(0);
+  const isHangulSyllable = code >= 0xac00 && code <= 0xd7a3;
+
+  return isHangulSyllable && (code - 0xac00) % 28 !== 0;
+}
+
+function childNameWithParticle(name: string, afterFinal: string, afterVowel: string) {
+  return `${name}${hasKoreanFinalConsonant(name) ? afterFinal : afterVowel}`;
+}
+
 export const demoAnalysis: DrawingAnalysis = {
   characters: ["수민이", "엄마"],
   place: "바닷가",
@@ -16,13 +31,15 @@ export function createDemoStory({
   age?: number;
 }): BilingualStory {
   const name = nickname.trim() || "아이";
+  const nameAnd = childNameWithParticle(name, "이와", "와");
+  const nameTopic = childNameWithParticle(name, "이는", "는");
 
   return {
-    titleKo: `${name}와 조개의 비밀`,
+    titleKo: `${nameAnd} 조개의 비밀`,
     titleEn: `${name} and the Secret Shell`,
     pages: [
       {
-        ko: `${name}는 엄마와 바닷가에 갔어요. 파도가 반짝반짝 웃고 있었어요.`,
+        ko: `${nameTopic} 엄마와 바닷가에 갔어요. 파도가 반짝반짝 웃고 있었어요.`,
         en: `${name} went to the beach with Mom. The waves sparkled and smiled.`,
         words: [
           { ko: "바닷가", en: "beach" },
@@ -31,7 +48,7 @@ export function createDemoStory({
         focus: { x: 50, y: 50 }
       },
       {
-        ko: `${name}는 모래 사이에서 반짝이는 조개를 발견했어요.`,
+        ko: `${nameTopic} 모래 사이에서 반짝이는 조개를 발견했어요.`,
         en: `${name} found a shiny shell in the sand.`,
         words: [
           { ko: "조개", en: "shell" },

@@ -99,6 +99,14 @@ function fallbackStory({ childName, age, theme, mode, diaryText, characterIdenti
   };
 }
 
+function normalizeStory(story) {
+  const pages = Array.isArray(story.pages) ? story.pages : [];
+  return {
+    ...story,
+    pages: pages.slice(0, 4)
+  };
+}
+
 function fallbackReason(reason) {
   if (reason === "quota") {
     return "현재 OpenAI API 크레딧이 부족해 실제 그림 분석 대신 입력한 글과 테마를 바탕으로 데모 이야기를 만들었습니다.";
@@ -180,7 +188,8 @@ Rules:
 - Treat the uploaded child drawing as the heart of the book. Mention visible details from the drawing when possible, and make the child's drawing feel like the source of the story rather than a generic prompt.
 - Avoid violence, fear, commercial content, and addictive hooks.
 - If story mode is open-ended, stop at an exciting but gentle moment and invite the child to imagine or draw the next scene.
-- Keep it short: 4 to 6 pages.
+- Create exactly 4 story pages. Do not create a separate cover page.
+- Each page should have 1 to 2 short Korean sentences and 1 simple English translation.
 - Return only valid JSON with this schema:
 {
   "title": "string",
@@ -236,7 +245,7 @@ async function generateStory(payload) {
     data.output?.flatMap((item) => item.content || []).find((item) => item.text)?.text;
 
   if (!text) throw new Error("OpenAI response did not include text output.");
-  return JSON.parse(text);
+  return normalizeStory(JSON.parse(text));
 }
 
 async function serveStatic(req, res) {

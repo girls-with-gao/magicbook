@@ -68,19 +68,16 @@ function setBusy(isBusy) {
 function renderStory() {
   if (!currentStory) return;
   const pages = currentStory.pages || [];
-  const totalPages = pages.length + 1;
-  const isCover = currentPage === 0;
-  const storyPage = pages[currentPage - 1] || { ko: "", en: "" };
+  const totalPages = pages.length;
+  const storyPage = pages[currentPage] || { ko: "", en: "" };
   const characterLabel = [characterName, characterIdentity].filter(Boolean).join(" · ") || "아이 그림 주인공";
   const scene = sceneClasses[currentPage % sceneClasses.length];
 
   storyTitle.textContent = currentStory.title || "매직북";
   pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
-  pageKo.textContent = isCover
-    ? `${currentStory.title || "매직북"}\n\n이 책의 주인공은 아이가 직접 그린 그림 그대로예요.`
-    : storyPage.ko;
-  pageEn.textContent = isCover ? currentStory.summary || "" : storyPage.en;
-  characterLine.textContent = `오늘의 주인공: ${characterLabel}`;
+  pageKo.textContent = storyPage.ko;
+  pageEn.textContent = storyPage.en;
+  characterLine.textContent = `원본 보존 모드 · ${characterLabel}`;
   storyNote.textContent = currentStory.note || "";
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
@@ -91,7 +88,6 @@ function renderStory() {
   pageArt.style.setProperty("--character-scale", `${[1.06, 0.98, 1.02, 0.96, 1.04][currentPage % 5]}`);
   moodBadge.textContent = moods[currentPage % moods.length];
   moodBadge.hidden = !uploadedImageDataUrl;
-  book.classList.toggle("cover-page", isCover);
   bookPage.classList.remove(...sceneClasses);
   bookPage.classList.add(scene);
 
@@ -173,7 +169,7 @@ prevPage.addEventListener("click", () => {
 });
 
 nextPage.addEventListener("click", () => {
-  currentPage = Math.min((currentStory?.pages?.length || 0), currentPage + 1);
+  currentPage = Math.min((currentStory?.pages?.length || 1) - 1, currentPage + 1);
   renderStory();
 });
 

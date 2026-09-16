@@ -9,8 +9,10 @@ const pageLabel = document.querySelector("#page-label");
 const storyTitle = document.querySelector("#story-title");
 const bookPage = document.querySelector("#book-page");
 const storybookScene = document.querySelector("#storybook-scene");
+const generatedPageArt = document.querySelector("#generated-page-art");
 const pageArt = document.querySelector("#page-art");
 const moodBadge = document.querySelector("#mood-badge");
+const sceneCaption = document.querySelector("#scene-caption");
 const characterLine = document.querySelector("#character-line");
 const pageKo = document.querySelector("#page-ko");
 const pageEn = document.querySelector("#page-en");
@@ -129,6 +131,9 @@ function setBusy(isBusy) {
   emptyState.hidden = true;
   loading.hidden = !isBusy;
   book.hidden = true;
+  if (isBusy) {
+    loading.querySelector("p").textContent = "동화 글과 그림책 삽화를 만들고 있어요. 최대 1분 정도 걸릴 수 있어요...";
+  }
 }
 
 function renderStory() {
@@ -143,11 +148,14 @@ function renderStory() {
   pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
   pageKo.textContent = storyPage.ko;
   pageEn.textContent = storyPage.en;
-  characterLine.textContent = `원본 보존 모드 · ${characterLabel}`;
+  characterLine.textContent = `아이 그림 기반 생성 · ${characterLabel}`;
+  sceneCaption.textContent = storyPage.ko;
   storyNote.textContent = currentStory.note || "";
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
   nextPage.disabled = currentPage === totalPages - 1;
+  generatedPageArt.src = storyPage.imageDataUrl || "";
+  bookPage.classList.toggle("has-generated-art", Boolean(storyPage.imageDataUrl));
   storybookScene.hidden = !characterCutoutDataUrl;
   pageArt.src = characterCutoutDataUrl;
   pageArt.style.setProperty("--character-tilt", `${[-4, 3, -1, 5, -3][currentPage % 5]}deg`);

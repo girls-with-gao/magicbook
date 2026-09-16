@@ -110,10 +110,21 @@ function normalizeStory(story) {
   };
 }
 
+function normalizeStoryWithImages(story, images) {
+  const normalized = normalizeStory(story);
+  return {
+    ...normalized,
+    pages: normalized.pages.map((page, index) => ({
+      ...page,
+      imageDataUrl: images[index] || ""
+    }))
+  };
+}
+
 function trimSentences(text, maxSentences) {
   return text
     .replace(/\s+/g, " ")
-    .split(/(?<=[.!?。？！요다죠음함까])\s+/)
+    .split(/(?<=[.!?。？！])\s+/)
     .filter(Boolean)
     .slice(0, maxSentences)
     .join(" ");
@@ -262,7 +273,120 @@ async function generateStory(payload) {
     data.output?.flatMap((item) => item.content || []).find((item) => item.text)?.text;
 
   if (!text) throw new Error("OpenAI response did not include text output.");
-  return normalizeStory(JSON.parse(text));
+  const story = normalizeStory(JSON.parse(text));
+  if (!payload.imageDataUrl) return story;
+
+  try {
+    const images = await generatePageImages(payload, story);
+    return normalizeStoryWithImages(story, images);
+  } catch (error) {
+    return {
+      ...story,
+      note: `${story.note || ""} 삽화 생성 중 문제가 있어 임시 장면으로 표시합니다: ${error.message}`.trim()
+    };
+  }
+}
+
+async function generatePageImages(payload, story) {
+  const pages = story.pages || [];
+  const results = [];
+
+  for (let index = 0; index < pages.length; index += 1) {
+    const image = await generatePageImage(payload, story, pages[index], index);
+    results.push(image);
+  }
+
+  return results;
+}
+
+async function generatePageImage(payload, story, page, index) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const prompt = buildImagePrompt(payload, story, page, index);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            { type: "input_image", image_url: payload.imageDataUrl }
+          ]
+        }
+      ],
+      tools: [
+        {
+          type: "image_generation",
+          model: "gpt-image-1-mini",
+          quality: "low",
+          size: "1024x1024",
+          output_format: "png",
+          input_fidelity: "high"
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`image generation failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const base64 = findGeneratedImage(data);
+  if (!base64) throw new Error("image generation response did not include an image");
+  return `data:image/png;base64,${base64}`;
+}
+
+function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index) {
+  const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
+  return `
+Create one Korean children's picture-book illustration page.
+
+Reference image: the uploaded child drawing. Use it as the core character design.
+The character may be cleaned up into a soft picture-book illustration, but it must clearly preserve the child's original drawing's identity, silhouette, colors, and quirky proportions.
+Do not replace it with a generic polished character. If it looks like a dog but the child says it is a triceratops, it is a triceratops with the child's drawn shape.
+
+Child: ${childName || "아이"}
+Character: ${hero}
+Character details: ${characterDetails || "preserve the uploaded drawing's visible features"}
+Theme: ${theme || "warm adventure"}
+Diary context: ${diaryText || "none"}
+Story title: ${story.title || "MagicBook"}
+Page ${index + 1} Korean text: ${page.ko}
+
+Visual direction:
+- Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
+- One full-page illustration with the character acting in the scene.
+- Leave calm empty space near the bottom or side for Korean caption overlay; do not draw any readable text, letters, labels, logos, or page numbers.
+- Safe, cozy, age-appropriate, no scary or violent elements.
+`;
+}
+
+function findGeneratedImage(value) {
+  if (!value || typeof value !== "object") return "";
+  if (typeof value.result === "string") return value.result;
+  if (typeof value.b64_json === "string") return value.b64_json;
+  if (typeof value.image_base64 === "string") return value.image_base64;
+
+  for (const item of Object.values(value)) {
+    if (Array.isArray(item)) {
+      for (const child of item) {
+        const found = findGeneratedImage(child);
+        if (found) return found;
+      }
+    } else if (item && typeof item === "object") {
+      const found = findGeneratedImage(item);
+      if (found) return found;
+    }
+  }
+
+  return "";
 }
 
 async function serveStatic(req, res) {

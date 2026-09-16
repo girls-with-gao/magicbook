@@ -367,12 +367,38 @@ h2 {
 
 .storybook-scene {
   position: relative;
+  min-height: 430px;
   overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 8px;
   background:
     linear-gradient(180deg, var(--scene-a) 0 63%, var(--ground) 64% 100%);
   box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+}
+
+.has-generated-art .storybook-scene {
+  background: #fff;
+}
+
+#generated-page-art {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.has-generated-art #generated-page-art {
+  display: block;
+}
+
+.has-generated-art .scene-sun,
+.has-generated-art .scene-cloud,
+.has-generated-art .scene-prop,
+.has-generated-art #page-art,
+.has-generated-art .mood-badge {
+  display: none;
 }
 
 .scene-sun {
@@ -472,6 +498,24 @@ h2 {
   font-weight: 900;
   box-shadow: 0 5px 0 rgba(31, 41, 55, 0.1);
   z-index: 4;
+}
+
+.scene-caption {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 24px;
+  margin: 0;
+  border: 2px solid rgba(31, 41, 55, 0.86);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 253, 247, 0.9);
+  color: var(--ink);
+  font-size: clamp(20px, 2.3vw, 30px);
+  font-weight: 900;
+  line-height: 1.35;
+  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.12);
+  z-index: 5;
 }
 
 .page-copy {
@@ -586,6 +630,13 @@ li {
 
   .storybook-scene {
     min-height: 300px;
+  }
+
+  .scene-caption {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    font-size: 18px;
   }
 }
 

@@ -321,6 +321,8 @@ h2 {
 }
 
 .book-page {
+  --scene-a: #e7f8f0;
+  --scene-b: #fff7dc;
   display: grid;
   grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1fr);
   gap: clamp(18px, 3vw, 36px);
@@ -330,29 +332,83 @@ h2 {
   border: 2px solid #1f2937;
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(31, 41, 55, 0.08) 0 1px, transparent 1px 100%),
-    var(--paper);
-  background-size: 28px 100%;
+    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.82) 0 8%, transparent 9%),
+    linear-gradient(135deg, var(--scene-a), var(--scene-b));
   box-shadow: 0 14px 0 rgba(31, 41, 55, 0.08);
 }
 
+.scene-dino {
+  --scene-a: #e9f2de;
+  --scene-b: #f8e5bd;
+}
+
+.scene-sea {
+  --scene-a: #dff5ff;
+  --scene-b: #d7f3e8;
+}
+
+.scene-magic {
+  --scene-a: #fff3d7;
+  --scene-b: #f5def2;
+}
+
+.scene-night {
+  --scene-a: #e6edf9;
+  --scene-b: #fff0c2;
+}
+
 .page-art-wrap {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 220px;
   overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 8px;
-  background: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.52)),
+    repeating-linear-gradient(0deg, transparent 0 20px, rgba(31, 41, 55, 0.05) 21px 22px),
+    #ffffff;
   box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
 }
 
 #page-art {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 86%;
+  height: 86%;
   max-height: 300px;
   object-fit: contain;
+  filter: drop-shadow(0 12px 0 rgba(31, 41, 55, 0.1));
+  transform: translateY(2px) rotate(var(--character-tilt, -2deg)) scale(var(--character-scale, 1));
+  transform-origin: center bottom;
+}
+
+.mood-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  min-height: 38px;
+  border: 2px solid #1f2937;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--green-dark);
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgba(31, 41, 55, 0.1);
+}
+
+.page-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.character-line {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .page-ko {

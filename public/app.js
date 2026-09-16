@@ -7,8 +7,11 @@ const loading = document.querySelector("#loading");
 const book = document.querySelector("#book");
 const pageLabel = document.querySelector("#page-label");
 const storyTitle = document.querySelector("#story-title");
+const bookPage = document.querySelector("#book-page");
 const pageArtWrap = document.querySelector("#page-art-wrap");
 const pageArt = document.querySelector("#page-art");
+const moodBadge = document.querySelector("#mood-badge");
+const characterLine = document.querySelector("#character-line");
 const pageKo = document.querySelector("#page-ko");
 const pageEn = document.querySelector("#page-en");
 const storyNote = document.querySelector("#story-note");
@@ -22,6 +25,11 @@ const printBook = document.querySelector("#print-book");
 let currentStory = null;
 let currentPage = 0;
 let uploadedImageDataUrl = "";
+let characterIdentity = "";
+let characterName = "";
+
+const moods = ["짜잔!", "와!", "?", "좋아!", "다음?"];
+const sceneClasses = ["scene-dino", "scene-magic", "scene-sea", "scene-night"];
 
 function getSelected(group) {
   return document.querySelector(`[data-name="${group}"] .selected`)?.dataset.value;
@@ -63,20 +71,29 @@ function renderStory() {
   const totalPages = pages.length + 1;
   const isCover = currentPage === 0;
   const storyPage = pages[currentPage - 1] || { ko: "", en: "" };
+  const characterLabel = [characterName, characterIdentity].filter(Boolean).join(" · ") || "아이 그림 주인공";
+  const scene = sceneClasses[currentPage % sceneClasses.length];
 
   storyTitle.textContent = currentStory.title || "매직북";
   pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
   pageKo.textContent = isCover
-    ? `${currentStory.title || "매직북"}\n\n이 책은 아이가 직접 그린 그림에서 시작됐어요.`
+    ? `${currentStory.title || "매직북"}\n\n이 책의 주인공은 아이가 직접 그린 그림 그대로예요.`
     : storyPage.ko;
   pageEn.textContent = isCover ? currentStory.summary || "" : storyPage.en;
+  characterLine.textContent = `오늘의 주인공: ${characterLabel}`;
   storyNote.textContent = currentStory.note || "";
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
   nextPage.disabled = currentPage === totalPages - 1;
   pageArtWrap.hidden = !uploadedImageDataUrl;
   pageArt.src = uploadedImageDataUrl;
+  pageArt.style.setProperty("--character-tilt", `${[-4, 3, -1, 5, -3][currentPage % 5]}deg`);
+  pageArt.style.setProperty("--character-scale", `${[1.06, 0.98, 1.02, 0.96, 1.04][currentPage % 5]}`);
+  moodBadge.textContent = moods[currentPage % moods.length];
+  moodBadge.hidden = !uploadedImageDataUrl;
   book.classList.toggle("cover-page", isCover);
+  bookPage.classList.remove(...sceneClasses);
+  bookPage.classList.add(scene);
 
   promptList.innerHTML = "";
   (currentStory.prompts || []).forEach((prompt) => {
@@ -113,10 +130,15 @@ form.addEventListener("submit", async (event) => {
   try {
     const imageDataUrl = await fileToDataUrl(imageInput.files?.[0]);
     uploadedImageDataUrl = imageDataUrl;
+    characterIdentity = document.querySelector("#character-identity").value.trim();
+    characterName = document.querySelector("#character-name").value.trim();
     const payload = {
       imageDataUrl,
       childName: document.querySelector("#child-name").value.trim(),
       age: document.querySelector("#age").value,
+      characterIdentity,
+      characterName,
+      characterDetails: document.querySelector("#character-details").value.trim(),
       diaryText: document.querySelector("#diary-text").value.trim(),
       theme: getSelected("theme"),
       mode: getSelected("mode")

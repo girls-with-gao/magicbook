@@ -46,46 +46,48 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-function fallbackStory({ childName, age, theme, mode, diaryText }, reason = "missing-key") {
+function fallbackStory({ childName, age, theme, mode, diaryText, characterIdentity, characterName, characterDetails }, reason = "missing-key") {
   const name = childName || "아이";
   const openEnded = mode === "continue";
   const subject = josa(name, "이", "가");
   const topic = josa(name, "은", "는");
-  const object = inferSubject(diaryText, theme);
+  const object = characterIdentity || inferSubject(diaryText, theme);
+  const heroName = characterName || object;
   const englishObject = inferEnglishSubject(object);
   const place = inferPlace(diaryText);
   const englishPlace = inferEnglishPlace(place);
   const themeText = theme || "신기한 모험";
+  const details = characterDetails || "아이 그림 그대로의 특별한 모습";
 
   return {
-    title: `${name}의 ${object} 매직북`,
-    summary: `${name}${subject} 남긴 그림과 일기를 바탕으로 ${place}에서 만난 ${object} 이야기를 만들었습니다.`,
+    title: `${name}의 ${heroName} 매직북`,
+    summary: `${name}${subject} 직접 그린 ${object} '${heroName}'${josa(heroName, "이", "가")} 주인공인 이야기입니다.`,
     keywords: [object, place, themeText, "상상"],
     pages: [
       {
-        ko: `${name}${subject} 그린 그림 속 ${object}${josa(object, "이", "가")} 반짝 눈을 떴어요. 오늘 ${name}${topic} ${place}에서 본 멋진 모습을 떠올렸죠.`,
+        ko: `${name}${subject} 그린 ${object} '${heroName}'${josa(heroName, "이", "가")} 그림 속에서 반짝 눈을 떴어요. ${details}${josa(details, "은", "는")} 그대로였죠.`,
         en: `The ${englishObject} opened its eyes inside the drawing. The child remembered the amazing day at the ${englishPlace}.`
       },
       {
-        ko: `${object}${josa(object, "은", "는")} 색연필 길을 천천히 걸으며 말했어요. "나를 이렇게 멋지게 기억해줘서 고마워!"`,
+        ko: `'${heroName}'${josa(heroName, "은", "는")} 색연필 길을 천천히 걸으며 말했어요. "나를 이렇게 멋지게 그려줘서 고마워!"`,
         en: `The ${englishObject} walked along a crayon road and said, "Thank you for remembering me in such a wonderful way!"`
       },
       {
-        ko: `${name}${topic} ${object}의 뿔과 튼튼한 발을 보며, 전시회에서 느꼈던 두근거림을 다시 떠올렸어요.`,
+        ko: `${name}${topic} 그림 속 '${heroName}'${josa(heroName, "이", "가")} 움직이는 모습을 보며, ${place}에서 느꼈던 두근거림을 다시 떠올렸어요.`,
         en: `The child looked at the ${englishObject}'s horns and strong feet, and remembered the excitement from the exhibition.`
       },
       {
         ko: openEnded
-          ? `그때 전시장 안쪽에서 쿵, 쿵, 작은 발소리가 들렸어요. ${name}${topic} 고개를 돌렸어요. 이제 다음 장면은 ${name}${subject} 상상할 차례예요.`
-          : `${object}${josa(object, "은", "는")} ${name}에게 작은 화석 모양 별을 선물했고, 그림 속 전시회는 환한 모험으로 가득 찼어요.`,
+          ? `그때 그림 밖에서 쿵, 쿵, 작은 발소리가 들렸어요. '${heroName}'${josa(heroName, "은", "는")} 고개를 돌렸어요. 이제 다음 장면은 ${name}${subject} 상상할 차례예요.`
+          : `'${heroName}'${josa(heroName, "은", "는")} ${name}에게 작은 화석 모양 별을 선물했고, 그림 속 세상은 환한 모험으로 가득 찼어요.`,
         en: openEnded
           ? `Then the child heard soft footsteps from inside the exhibition hall. Now it is time to imagine what happens next.`
           : `The ${englishObject} gave the child a tiny fossil-shaped star, and the drawing exhibition became full of bright adventure.`
       }
     ],
     prompts: [
-      `${object}${josa(object, "은", "는")} 다음에 어디로 걸어갈까요?`,
-      `${name}${subject} ${object}에게 물어보고 싶은 것은 무엇일까요?`,
+      `'${heroName}'${josa(heroName, "은", "는")} 다음에 어디로 걸어갈까요?`,
+      `${name}${subject} '${heroName}'에게 물어보고 싶은 것은 무엇일까요?`,
       `전시회 다음 장면을 그린다면 어떤 공룡이나 화석을 더 그리고 싶나요?`
     ],
     englishWords: [
@@ -152,7 +154,7 @@ function josa(word, withFinalConsonant, withoutFinalConsonant) {
   return hasFinalConsonant ? withFinalConsonant : withoutFinalConsonant;
 }
 
-function buildPrompt({ childName, age, theme, mode, diaryText }) {
+function buildPrompt({ childName, age, theme, mode, diaryText, characterIdentity, characterName, characterDetails }) {
   return `
 You are MagicBook, an AI storybook creator for children.
 
@@ -160,6 +162,9 @@ Create a safe, warm, age-appropriate storybook from a child's drawing or drawing
 
 Child name: ${childName || "아이"}
 Age: ${age || "unknown"}
+Child says the main character is: ${characterIdentity || "not specified"}
+Character name: ${characterName || "not specified"}
+Character details from child/parent: ${characterDetails || "not specified"}
 Theme: ${theme || "free imagination"}
 Story mode: ${mode === "continue" ? "open-ended continuation" : "complete story"}
 Diary text written by child or parent: ${diaryText || "none"}
@@ -167,6 +172,9 @@ Diary text written by child or parent: ${diaryText || "none"}
 Rules:
 - Korean should be natural and warm.
 - English should be easy enough for the child's age.
+- The child's interpretation is the source of truth. If the child says the drawing is a triceratops, princess, robot, or anything else, treat the uploaded drawing as that exact character even if it looks different.
+- Never replace the child's character with a generic AI-created version. The visual protagonist of the book is the original uploaded drawing.
+- Write the story as if the uploaded drawing itself entered the story world. Use phrases such as "the character the child drew" naturally, but do not over-repeat them.
 - The story must be grounded in the uploaded drawing and diary text. If the diary mentions a specific subject, place, or event, make that the center of the story.
 - If the drawing and diary seem different, prioritize the diary text and explain the drawing as part of that memory.
 - Treat the uploaded child drawing as the heart of the book. Mention visible details from the drawing when possible, and make the child's drawing feel like the source of the story rather than a generic prompt.

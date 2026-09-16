@@ -51,6 +51,22 @@
             </div>
           </div>
 
+          <div class="form-grid">
+            <div class="field">
+              <label for="character-identity">그림 속 주인공</label>
+              <input id="character-identity" name="characterIdentity" type="text" placeholder="예: 트리케라톱스" maxlength="30" />
+            </div>
+            <div class="field">
+              <label for="character-name">이름</label>
+              <input id="character-name" name="characterName" type="text" placeholder="예: 트리" maxlength="12" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="character-details">주인공 특징</label>
+            <input id="character-details" name="characterDetails" type="text" placeholder="예: 뿔이 멋있고 초록색이에요" maxlength="80" />
+          </div>
+
           <div class="field">
             <label for="diary-text">그림일기 글 또는 아이가 말한 이야기</label>
             <textarea id="diary-text" name="diaryText" rows="3" placeholder="예: 오늘 바다에 가서 조개를 주웠어요."></textarea>
@@ -100,12 +116,16 @@
               <button type="button" class="icon-button" id="next-page" aria-label="다음 페이지">›</button>
             </div>
 
-            <div class="book-page">
+            <div class="book-page" id="book-page">
               <div class="page-art-wrap" id="page-art-wrap">
                 <img id="page-art" alt="아이 그림" />
+                <span class="mood-badge" id="mood-badge">와!</span>
               </div>
-              <p class="page-ko" id="page-ko"></p>
-              <p class="page-en" id="page-en"></p>
+              <div class="page-copy">
+                <p class="character-line" id="character-line"></p>
+                <p class="page-ko" id="page-ko"></p>
+                <p class="page-en" id="page-en"></p>
+              </div>
             </div>
             <p class="story-note" id="story-note"></p>
 

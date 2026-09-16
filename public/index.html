@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>매직북</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero" aria-labelledby="title">
+        <div class="hero-copy">
+          <p class="eyebrow">MagicBook</p>
+          <h1 id="title">아이 그림이 동화가 되는 순간</h1>
+          <p class="lead">
+            그림이나 그림일기를 올리면 AI가 아이의 상상을 짧은 동화와 쉬운 영어 이야기로 열어줍니다.
+          </p>
+        </div>
+        <div class="hero-preview" aria-hidden="true">
+          <div class="paper paper-one"></div>
+          <div class="paper paper-two"></div>
+          <div class="paper paper-three">
+            <span></span>
+            <strong>Magic</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form class="creator" id="story-form">
+          <div class="field">
+            <label for="image">그림 또는 그림일기</label>
+            <div class="dropzone" id="dropzone">
+              <input id="image" name="image" type="file" accept="image/*" />
+              <img id="preview" alt="" />
+              <div class="drop-copy" id="drop-copy">
+                <strong>사진을 올려주세요</strong>
+                <span>아이 그림, 그림일기 모두 가능해요</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="child-name">아이 이름</label>
+              <input id="child-name" name="childName" type="text" placeholder="예: 하린" maxlength="12" />
+            </div>
+            <div class="field">
+              <label for="age">나이</label>
+              <input id="age" name="age" type="number" min="3" max="12" placeholder="예: 7" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="diary-text">그림일기 글 또는 아이가 말한 이야기</label>
+            <textarea id="diary-text" name="diaryText" rows="3" placeholder="예: 오늘 바다에 가서 조개를 주웠어요."></textarea>
+          </div>
+
+          <div class="field">
+            <span class="label">테마</span>
+            <div class="chips" data-name="theme">
+              <button type="button" class="chip selected" data-value="용감한 모험">용감한 모험</button>
+              <button type="button" class="chip" data-value="공주와 마법">공주와 마법</button>
+              <button type="button" class="chip" data-value="바닷속 여행">바닷속 여행</button>
+              <button type="button" class="chip" data-value="동물 친구들">동물 친구들</button>
+              <button type="button" class="chip" data-value="부산 바다 모험">부산 바다 모험</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="label">이야기 유형</span>
+            <div class="segmented" data-name="mode">
+              <button type="button" class="segment selected" data-value="complete">완성형</button>
+              <button type="button" class="segment" data-value="continue">이어쓰기형</button>
+            </div>
+          </div>
+
+          <button class="submit" type="submit">
+            <span>매직북 만들기</span>
+          </button>
+        </form>
+
+        <section class="result" aria-live="polite">
+          <div class="empty" id="empty-state">
+            <p>그림을 올리고 매직북을 만들어보세요.</p>
+          </div>
+
+          <div class="loading" id="loading" hidden>
+            <div class="spinner"></div>
+            <p>아이의 그림 속 이야기를 찾고 있어요...</p>
+          </div>
+
+          <article class="book" id="book" hidden>
+            <div class="book-toolbar">
+              <button type="button" class="icon-button" id="prev-page" aria-label="이전 페이지">‹</button>
+              <div>
+                <p class="book-label" id="page-label">1 / 1</p>
+                <h2 id="story-title"></h2>
+              </div>
+              <button type="button" class="icon-button" id="next-page" aria-label="다음 페이지">›</button>
+            </div>
+
+            <div class="book-page">
+              <p class="page-ko" id="page-ko"></p>
+              <p class="page-en" id="page-en"></p>
+            </div>
+            <p class="story-note" id="story-note"></p>
+
+            <div class="book-actions">
+              <button type="button" id="toggle-english">영어 보기</button>
+              <button type="button" id="print-book">PDF 저장</button>
+            </div>
+
+            <div class="prompts">
+              <h3>다음 상상</h3>
+              <ul id="prompt-list"></ul>
+            </div>
+
+            <div class="words">
+              <h3>영어 단어</h3>
+              <div id="word-list"></div>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

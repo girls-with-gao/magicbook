@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" rx="30" fill="#fffdf6"/>
+  <path d="M0 490 Q180 430 330 500 T670 480 T1000 500 V760 H0Z" fill="#f3d89e"/>
+  <path d="M0 360 Q180 310 360 365 T710 345 T1000 370 V510 Q800 455 650 500 T300 485 T0 505Z" fill="#79cbe7"/>
+  <circle cx="830" cy="125" r="68" fill="#ffd55d" stroke="#f0ad41" stroke-width="12"/>
+  <path d="M210 555 Q165 470 225 430 Q300 468 320 555Z" fill="#ff8e72" stroke="#70483f" stroke-width="13"/>
+  <circle cx="222" cy="470" r="8" fill="#463833"/><circle cx="258" cy="474" r="8" fill="#463833"/>
+  <path d="M223 505 Q244 522 270 502" fill="none" stroke="#70483f" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="550" cy="390" r="62" fill="#f4c49b" stroke="#5a443a" stroke-width="12"/>
+  <path d="M493 377 Q550 305 610 375" fill="#604437"/>
+  <circle cx="530" cy="392" r="7"/><circle cx="570" cy="392" r="7"/>
+  <path d="M530 430 Q552 447 575 428" fill="none" stroke="#8b554a" stroke-width="8" stroke-linecap="round"/>
+  <path d="M470 600 L550 450 L635 600Z" fill="#b68ce1" stroke="#655078" stroke-width="12"/>
+  <path d="M655 565 Q700 520 745 565 Q705 615 655 565Z" fill="#ffdc75" stroke="#9c7342" stroke-width="10"/>
+  <path d="M680 565 Q700 542 720 565" fill="none" stroke="#fff6c8" stroke-width="7"/>
+  <text x="80" y="100" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">오늘 엄마와 바닷가에서</text>
+  <text x="80" y="160" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">반짝이는 조개를 찾았다.</text>
+</svg>

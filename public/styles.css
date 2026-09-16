@@ -323,64 +323,138 @@ h2 {
 .book-page {
   --scene-a: #e7f8f0;
   --scene-b: #fff7dc;
+  --ground: #93c572;
+  --prop: #c7834b;
   display: grid;
-  grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1fr);
-  gap: clamp(18px, 3vw, 36px);
-  align-items: center;
-  min-height: 330px;
-  padding: clamp(22px, 4vw, 44px);
+  grid-template-columns: minmax(270px, 1fr) minmax(260px, 0.9fr);
+  gap: clamp(18px, 3vw, 32px);
+  align-items: stretch;
+  min-height: 430px;
+  padding: clamp(16px, 3vw, 30px);
   border: 2px solid #1f2937;
   border-radius: 8px;
-  background:
-    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.82) 0 8%, transparent 9%),
-    linear-gradient(135deg, var(--scene-a), var(--scene-b));
+  background: #fffaf0;
   box-shadow: 0 14px 0 rgba(31, 41, 55, 0.08);
 }
 
 .scene-dino {
-  --scene-a: #e9f2de;
-  --scene-b: #f8e5bd;
+  --scene-a: #dff1d0;
+  --scene-b: #fee4b8;
+  --ground: #9fc46f;
+  --prop: #b97a48;
 }
 
 .scene-sea {
   --scene-a: #dff5ff;
-  --scene-b: #d7f3e8;
+  --scene-b: #bee8f3;
+  --ground: #f4d38a;
+  --prop: #2f89a5;
 }
 
 .scene-magic {
   --scene-a: #fff3d7;
   --scene-b: #f5def2;
+  --ground: #d6b3df;
+  --prop: #8f6cc8;
 }
 
 .scene-night {
   --scene-a: #e6edf9;
   --scene-b: #fff0c2;
+  --ground: #8aa6bd;
+  --prop: #4f6b8c;
 }
 
-.page-art-wrap {
+.storybook-scene {
   position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 220px;
   overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.52)),
-    repeating-linear-gradient(0deg, transparent 0 20px, rgba(31, 41, 55, 0.05) 21px 22px),
-    #ffffff;
+    linear-gradient(180deg, var(--scene-a) 0 63%, var(--ground) 64% 100%);
   box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+}
+
+.scene-sun {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  width: 58px;
+  height: 58px;
+  border: 2px solid #1f2937;
+  border-radius: 50%;
+  background: #ffd45a;
+}
+
+.scene-cloud {
+  position: absolute;
+  width: 96px;
+  height: 34px;
+  border: 2px solid #1f2937;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.cloud-one {
+  top: 52px;
+  left: 32px;
+}
+
+.cloud-two {
+  top: 108px;
+  right: 98px;
+  transform: scale(0.78);
+}
+
+.scene-prop {
+  position: absolute;
+  bottom: 58px;
+  border: 2px solid #1f2937;
+  background: var(--prop);
+}
+
+.prop-one {
+  left: 26px;
+  width: 72px;
+  height: 54px;
+  border-radius: 8px 8px 4px 4px;
+  transform: rotate(-5deg);
+}
+
+.prop-two {
+  right: 34px;
+  width: 52px;
+  height: 88px;
+  border-radius: 999px 999px 8px 8px;
+  transform: rotate(6deg);
+}
+
+.scene-sea .prop-one,
+.scene-sea .prop-two {
+  border-radius: 50%;
+}
+
+.scene-magic .prop-one,
+.scene-magic .prop-two {
+  transform: rotate(45deg);
+}
+
+.scene-night .scene-sun {
+  background: #fff4b8;
 }
 
 #page-art {
   display: block;
-  width: 86%;
-  height: 86%;
-  max-height: 300px;
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  width: min(58%, 260px);
+  height: min(70%, 280px);
   object-fit: contain;
   filter: drop-shadow(0 12px 0 rgba(31, 41, 55, 0.1));
-  transform: translateY(2px) rotate(var(--character-tilt, -2deg)) scale(var(--character-scale, 1));
+  transform: translateX(-50%) rotate(var(--character-tilt, -2deg)) scale(var(--character-scale, 1));
   transform-origin: center bottom;
+  z-index: 3;
 }
 
 .mood-badge {
@@ -397,11 +471,21 @@ h2 {
   color: var(--green-dark);
   font-weight: 900;
   box-shadow: 0 5px 0 rgba(31, 41, 55, 0.1);
+  z-index: 4;
 }
 
 .page-copy {
   display: grid;
+  align-content: center;
   gap: 12px;
+  border: 2px solid #1f2937;
+  border-radius: 8px;
+  padding: clamp(18px, 3vw, 30px);
+  background:
+    linear-gradient(90deg, rgba(31, 41, 55, 0.08) 0 1px, transparent 1px 100%),
+    var(--paper);
+  background-size: 24px 100%;
+  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
 }
 
 .character-line {
@@ -500,8 +584,8 @@ li {
     grid-template-columns: 1fr;
   }
 
-  .page-art-wrap {
-    min-height: 180px;
+  .storybook-scene {
+    min-height: 300px;
   }
 }
 

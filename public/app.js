@@ -8,7 +8,7 @@ const book = document.querySelector("#book");
 const pageLabel = document.querySelector("#page-label");
 const storyTitle = document.querySelector("#story-title");
 const bookPage = document.querySelector("#book-page");
-const pageArtWrap = document.querySelector("#page-art-wrap");
+const storybookScene = document.querySelector("#storybook-scene");
 const pageArt = document.querySelector("#page-art");
 const moodBadge = document.querySelector("#mood-badge");
 const characterLine = document.querySelector("#character-line");
@@ -25,6 +25,7 @@ const printBook = document.querySelector("#print-book");
 let currentStory = null;
 let currentPage = 0;
 let uploadedImageDataUrl = "";
+let characterCutoutDataUrl = "";
 let characterIdentity = "";
 let characterName = "";
 
@@ -58,6 +59,71 @@ function fileToDataUrl(file) {
   });
 }
 
+function extractCharacter(dataUrl) {
+  return new Promise((resolve) => {
+    if (!dataUrl) {
+      resolve("");
+      return;
+    }
+
+    const image = new Image();
+    image.onload = () => {
+      const maxSide = 900;
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      let minX = canvas.width;
+      let minY = canvas.height;
+      let maxX = 0;
+      let maxY = 0;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const index = (y * canvas.width + x) * 4;
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+          const isPaper = r > 218 && g > 218 && b > 205 && Math.abs(r - g) < 28 && Math.abs(g - b) < 36;
+          if (isPaper) {
+            data[index + 3] = 0;
+          } else if (data[index + 3] > 20) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      if (minX >= maxX || minY >= maxY) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const padding = 18;
+      const sx = Math.max(0, minX - padding);
+      const sy = Math.max(0, minY - padding);
+      const sw = Math.min(canvas.width - sx, maxX - minX + padding * 2);
+      const sh = Math.min(canvas.height - sy, maxY - minY + padding * 2);
+      const output = document.createElement("canvas");
+      output.width = sw;
+      output.height = sh;
+      output.getContext("2d").drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      resolve(output.toDataURL("image/png"));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
 function setBusy(isBusy) {
   form.querySelector(".submit").disabled = isBusy;
   emptyState.hidden = true;
@@ -82,8 +148,8 @@ function renderStory() {
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
   nextPage.disabled = currentPage === totalPages - 1;
-  pageArtWrap.hidden = !uploadedImageDataUrl;
-  pageArt.src = uploadedImageDataUrl;
+  storybookScene.hidden = !characterCutoutDataUrl;
+  pageArt.src = characterCutoutDataUrl;
   pageArt.style.setProperty("--character-tilt", `${[-4, 3, -1, 5, -3][currentPage % 5]}deg`);
   pageArt.style.setProperty("--character-scale", `${[1.06, 0.98, 1.02, 0.96, 1.04][currentPage % 5]}`);
   moodBadge.textContent = moods[currentPage % moods.length];
@@ -126,6 +192,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const imageDataUrl = await fileToDataUrl(imageInput.files?.[0]);
     uploadedImageDataUrl = imageDataUrl;
+    characterCutoutDataUrl = await extractCharacter(imageDataUrl);
     characterIdentity = document.querySelector("#character-identity").value.trim();
     characterName = document.querySelector("#character-name").value.trim();
     const payload = {

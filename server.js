@@ -103,8 +103,20 @@ function normalizeStory(story) {
   const pages = Array.isArray(story.pages) ? story.pages : [];
   return {
     ...story,
-    pages: pages.slice(0, 4)
+    pages: pages.slice(0, 4).map((page) => ({
+      ko: trimSentences(page.ko || "", 2),
+      en: trimSentences(page.en || "", 2)
+    }))
   };
+}
+
+function trimSentences(text, maxSentences) {
+  return text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?。？！요다죠음함까])\s+/)
+    .filter(Boolean)
+    .slice(0, maxSentences)
+    .join(" ");
 }
 
 function fallbackReason(reason) {
@@ -182,14 +194,19 @@ Rules:
 - English should be easy enough for the child's age.
 - The child's interpretation is the source of truth. If the child says the drawing is a triceratops, princess, robot, or anything else, treat the uploaded drawing as that exact character even if it looks different.
 - Never replace the child's character with a generic AI-created version. The visual protagonist of the book is the original uploaded drawing.
-- Write the story as if the uploaded drawing itself entered the story world. Use phrases such as "the character the child drew" naturally, but do not over-repeat them.
+- Write like a real picture book: scene by scene, with warm narration, simple action, and a page-turn feeling.
+- Write the story as if the extracted character from the uploaded drawing is acting inside illustrated backgrounds. The text should support the picture-book page, not explain the app.
 - The story must be grounded in the uploaded drawing and diary text. If the diary mentions a specific subject, place, or event, make that the center of the story.
 - If the drawing and diary seem different, prioritize the diary text and explain the drawing as part of that memory.
 - Treat the uploaded child drawing as the heart of the book. Mention visible details from the drawing when possible, and make the child's drawing feel like the source of the story rather than a generic prompt.
 - Avoid violence, fear, commercial content, and addictive hooks.
 - If story mode is open-ended, stop at an exciting but gentle moment and invite the child to imagine or draw the next scene.
 - Create exactly 4 story pages. Do not create a separate cover page.
-- Each page should have 1 to 2 short Korean sentences and 1 simple English translation.
+- Each page should have 1 to 2 short Korean picture-book sentences and 1 simple English translation.
+- Page 1 introduces the child's extracted character in the story world.
+- Page 2 starts a gentle event or discovery.
+- Page 3 shows action, emotion, or a small problem.
+- Page 4 resolves it or, for open-ended mode, pauses at a page-turn moment with a creative prompt.
 - Return only valid JSON with this schema:
 {
   "title": "string",

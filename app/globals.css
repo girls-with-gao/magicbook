@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+  --ink: #392f2a;
+  --paper: #fffaf0;
+  --coral: #f47f5c;
+  --coral-dark: #c95d3e;
+  --sky: #dff3ff;
+  --mint: #dcf4e6;
+  --line: #e7ddd0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: var(--ink);
+  background: var(--paper);
+  font-family: Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}

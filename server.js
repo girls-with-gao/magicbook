@@ -417,7 +417,9 @@ Visual direction:
 - One full-page illustration with the character acting in the scene.
 - Keep the protagonist's color palette identical to the reference. Do not make it lighter, darker, a different species, or a different character.
 - Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
-- Leave the picture itself clean; Korean story text will be rendered separately by the app.
+- Compose the illustration like a real storybook page with a calm empty area on the lower-right or side for Korean story text.
+- Keep the main character and important action away from that empty lower-right text area.
+- The app will place Korean text over the empty area, so leave that area visually simple with soft background only.
 - Safe, cozy, age-appropriate, no scary or violent elements.
 `;
 }

@@ -325,11 +325,8 @@ h2 {
   --scene-b: #fff7dc;
   --ground: #93c572;
   --prop: #c7834b;
-  display: grid;
-  grid-template-columns: minmax(270px, 1fr) minmax(260px, 0.9fr);
-  gap: clamp(18px, 3vw, 32px);
-  align-items: stretch;
-  min-height: 430px;
+  display: block;
+  min-height: 560px;
   padding: clamp(16px, 3vw, 30px);
   border: 2px solid #1f2937;
   border-radius: 8px;
@@ -367,7 +364,8 @@ h2 {
 
 .storybook-scene {
   position: relative;
-  min-height: 430px;
+  min-height: 520px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 8px;
@@ -501,17 +499,24 @@ h2 {
 }
 
 .page-copy {
+  position: absolute;
+  right: clamp(18px, 4vw, 46px);
+  bottom: clamp(18px, 4vw, 42px);
+  z-index: 6;
   display: grid;
-  align-content: center;
   gap: 12px;
-  border: 2px solid #1f2937;
+  width: min(44%, 440px);
+  max-height: calc(100% - 52px);
+  overflow: hidden;
+  border: 2px solid rgba(31, 41, 55, 0.9);
   border-radius: 8px;
-  padding: clamp(18px, 3vw, 30px);
+  padding: clamp(16px, 2.5vw, 28px);
   background:
     linear-gradient(90deg, rgba(31, 41, 55, 0.08) 0 1px, transparent 1px 100%),
-    var(--paper);
+    rgba(255, 250, 240, 0.92);
   background-size: 24px 100%;
-  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.14);
+  backdrop-filter: blur(3px);
 }
 
 .character-line {
@@ -523,7 +528,7 @@ h2 {
 
 .page-ko {
   margin: 0;
-  font-size: clamp(25px, 3.2vw, 44px);
+  font-size: clamp(25px, 3vw, 40px);
   line-height: 1.42;
   font-weight: 800;
 }
@@ -606,14 +611,22 @@ li {
 }
 
 @media (max-width: 760px) {
-  .book-page {
-    grid-template-columns: 1fr;
-  }
-
   .storybook-scene {
-    min-height: 300px;
+    min-height: 520px;
+    aspect-ratio: 4 / 5;
   }
 
+  .page-copy {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    max-height: 46%;
+  }
+
+  .page-ko {
+    font-size: 24px;
+  }
 }
 
 @media (max-width: 560px) {

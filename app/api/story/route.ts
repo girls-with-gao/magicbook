@@ -1,5 +1,6 @@
 import { buildStoryPrompt } from "@/lib/ai-prompts";
 import { createDemoStory } from "@/lib/demo-data";
+import { parsePreviousChapters } from "@/lib/previous-chapters";
 import { hasOpenAIKey, requestOpenAIJson } from "@/lib/openai";
 import type { BilingualStory, DrawingAnalysis, StoryPage } from "@/lib/story-types";
 
@@ -27,8 +28,13 @@ function cleanPage(value: Partial<StoryPage>, fallback: StoryPage): StoryPage {
   };
 }
 
-function normalizeStory(value: Partial<BilingualStory>, nickname: string, age: number): BilingualStory {
-  const fallback = createDemoStory({ nickname, age });
+function normalizeStory(
+  value: Partial<BilingualStory>,
+  nickname: string,
+  age: number,
+  chapter: number
+): BilingualStory {
+  const fallback = createDemoStory({ nickname, age, chapter });
   const pages = Array.isArray(value.pages)
     ? value.pages.slice(0, 4).map((page, index) => cleanPage(page, fallback.pages[index]))
     : [];
@@ -45,9 +51,14 @@ function normalizeStory(value: Partial<BilingualStory>, nickname: string, age: n
     offlinePromptEn:
       typeof value.offlinePromptEn === "string" && value.offlinePromptEn.trim()
         ? value.offlinePromptEn.trim()
-        : fallback.offlinePromptEn
+        : fallback.offlinePromptEn,
+    summaryKo:
+      typeof value.summaryKo === "string" && value.summaryKo.trim()
+        ? value.summaryKo.trim().slice(0, 300)
+        : [value.titleKo, value.pages?.at(-1)?.ko].filter(Boolean).join(" — ") || fallback.summaryKo
   };
 }
+
 
 function validAnalysis(value: unknown): value is DrawingAnalysis {
   if (!value || typeof value !== "object") return false;
@@ -67,6 +78,7 @@ export async function POST(request: Request) {
       nickname?: unknown;
       age?: unknown;
       analysis?: unknown;
+      previousChapters?: unknown;
     };
     if (!validAnalysis(body.analysis)) {
       return Response.json(
@@ -77,19 +89,21 @@ export async function POST(request: Request) {
 
     const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
     const age = Math.min(12, Math.max(5, Number(body.age) || 7));
+    const previousChapters = parsePreviousChapters(body.previousChapters);
+    const chapter = previousChapters.length + 1;
 
     if (!hasOpenAIKey()) {
       return Response.json(
-        { story: createDemoStory({ nickname, age }), demoMode: true },
+        { story: createDemoStory({ nickname, age, chapter }), demoMode: true },
         { headers: noStoreHeaders }
       );
     }
 
     const generated = await requestOpenAIJson<Partial<BilingualStory>>({
-      prompt: buildStoryPrompt({ nickname, age, analysis: body.analysis })
+      prompt: buildStoryPrompt({ nickname, age, analysis: body.analysis, previousChapters })
     });
     return Response.json(
-      { story: normalizeStory(generated, nickname, age), demoMode: false },
+      { story: normalizeStory(generated, nickname, age, chapter), demoMode: false },
       { headers: noStoreHeaders }
     );
   } catch (error) {

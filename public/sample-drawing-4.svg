@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" rx="30" fill="#e3f4fb"/>
+  <path d="M0 600 Q250 560 500 600 T1000 590 V760 H0Z" fill="#f3d89e"/>
+  <g stroke="#5a443a" stroke-width="10">
+    <rect x="100" y="440" width="130" height="130" fill="#ffb4a2"/><path d="M90 445 L165 370 L240 445Z" fill="#c77dff"/>
+    <rect x="770" y="420" width="140" height="150" fill="#a0d8b3"/><path d="M755 425 L840 340 L925 425Z" fill="#6aa5e8"/>
+  </g>
+  <g fill="#ffd55d" stroke="#f0ad41" stroke-width="8">
+    <circle cx="165" cy="330" r="26"/><circle cx="840" cy="300" r="26"/><circle cx="500" cy="330" r="46"/>
+  </g>
+  <g stroke="#ffd55d" stroke-width="8" stroke-linecap="round"><path d="M500 250 V220 M430 270 L410 250 M570 270 L590 250"/></g>
+  <path d="M300 520 Q350 480 400 520 Q350 560 300 520Z" fill="#ffd55d" stroke="#9c7342" stroke-width="9"/>
+  <path d="M640 470 Q720 400 800 470 Z" fill="#f3b8ff" stroke="#9b6bb0" stroke-width="8"/>
+  <circle cx="520" cy="520" r="45" fill="#f4c49b" stroke="#5a443a" stroke-width="11"/>
+  <path d="M500 535 Q520 552 542 535" fill="none" stroke="#8b554a" stroke-width="7" stroke-linecap="round"/>
+  <text x="80" y="100" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">바다 마을에 불이 다시 켜졌다.</text>
+  <text x="80" y="160" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">다 같이 춤을 췄다.</text>
+</svg>

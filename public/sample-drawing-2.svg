@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" rx="30" fill="#e3f4fb"/>
+  <path d="M0 600 Q250 560 500 600 T1000 590 V760 H0Z" fill="#f3d89e"/>
+  <g stroke="#5a443a" stroke-width="10">
+    <rect x="120" y="440" width="130" height="130" fill="#ffb4a2"/><path d="M110 445 L185 370 L260 445Z" fill="#c77dff"/>
+    <rect x="720" y="420" width="150" height="150" fill="#a0d8b3"/><path d="M705 425 L795 340 L885 425Z" fill="#6aa5e8"/>
+    <circle cx="185" cy="340" r="20" fill="#9aa3ad"/><circle cx="795" cy="310" r="20" fill="#9aa3ad"/>
+  </g>
+  <path d="M390 420 Q470 340 560 420 Q470 500 390 420Z" fill="#ffd55d" stroke="#9c7342" stroke-width="11"/>
+  <path d="M560 420 L620 370 L620 470Z" fill="#ffd55d" stroke="#9c7342" stroke-width="11"/>
+  <circle cx="430" cy="410" r="9" fill="#463833"/>
+  <circle cx="610" cy="560" r="45" fill="#f4c49b" stroke="#5a443a" stroke-width="11"/>
+  <circle cx="595" cy="555" r="6"/><circle cx="625" cy="555" r="6"/>
+  <circle cx="340" cy="260" r="14" fill="none" stroke="#6aa5e8" stroke-width="6"/><circle cx="370" cy="220" r="9" fill="none" stroke="#6aa5e8" stroke-width="5"/>
+  <text x="80" y="100" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">조개 속에 바다 마을이 있었다.</text>
+  <text x="80" y="160" font-family="sans-serif" font-size="43" font-weight="700" fill="#5d4d43">물고기 친구를 만났다.</text>
+</svg>

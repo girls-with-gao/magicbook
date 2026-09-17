@@ -68,7 +68,8 @@ button:disabled {
 /* 첫 화면과 이야기 화면은 넓은 화면에서 폭을 넓혀 2단으로 보여준다 */
 @media (min-width: 900px) {
   .studio-shell.stage-upload,
-  .studio-shell.stage-story {
+  .studio-shell.stage-story,
+  .studio-shell.stage-book {
     width: min(100% - 48px, 1040px);
   }
 }
@@ -785,6 +786,283 @@ footer {
   color: #81746b;
   text-align: center;
   font-size: 12px;
+}
+
+/* ---------- 이어 그리기 · 동화책 ---------- */
+
+.book-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  border: 1px solid #e8cf8f;
+  border-radius: 22px;
+  background: #fff6d8;
+}
+
+.book-banner > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.book-banner b {
+  font-size: 17px;
+}
+
+.book-banner small {
+  color: #6f5d3c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.book-banner-actions,
+.book-toolbar > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-banner-actions button,
+.book-toolbar button,
+.secondary-button {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.previous-summary {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.paper-prompt {
+  gap: 6px;
+  padding: 18px;
+}
+
+.paper-prompt small {
+  color: #8a7c72;
+  font-size: 12px;
+}
+
+.offline-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.offline-actions .primary-button {
+  margin-top: 0;
+}
+
+.offline-actions .secondary-button {
+  min-height: 52px;
+}
+
+.offline-actions .text-button {
+  margin: 4px auto 0;
+}
+
+.book-stage {
+  padding: clamp(18px, 4vw, 40px);
+}
+
+.book-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.book-toolbar > strong {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--mint);
+  font-size: 12px;
+}
+
+.book-spread {
+  display: none;
+  min-height: 460px;
+}
+
+.book-spread.current {
+  display: block;
+}
+
+.book-cover,
+.book-extra {
+  max-width: 620px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.book-cover-art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  background: var(--sky);
+  box-shadow: 0 10px 0 rgba(57, 47, 42, 0.1);
+}
+
+.book-cover-art img {
+  object-fit: cover;
+}
+
+.book-cover h2,
+.book-extra h2 {
+  margin: 0;
+  font-size: clamp(26px, 5vw, 40px);
+  letter-spacing: -0.03em;
+}
+
+.book-author {
+  margin: 14px 0 0;
+  color: var(--coral-dark);
+  font-weight: 900;
+}
+
+.book-page-spread .story-copy {
+  padding-top: 20px;
+}
+
+@media (min-width: 900px) {
+  .book-page-spread {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 32px;
+    align-items: center;
+  }
+
+  .book-page-spread .story-image {
+    height: 440px;
+  }
+
+  .book-page-spread .story-copy {
+    padding: 0;
+    text-align: left;
+  }
+}
+
+.word-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.word-cards li {
+  display: grid;
+  gap: 4px;
+  padding: 14px 10px;
+  border: 1px solid #e8cf8f;
+  border-radius: 16px;
+  background: #fff6d8;
+}
+
+.word-cards b {
+  color: var(--blue);
+  font-size: 18px;
+}
+
+.word-cards span {
+  color: #6f5d3c;
+  font-size: 13px;
+}
+
+.parent-summary {
+  text-align: left;
+}
+
+.parent-summary dl {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.parent-summary dl > div {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--green-soft);
+}
+
+.parent-summary dt {
+  margin-bottom: 4px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.parent-summary dd {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.parent-summary ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .brand-bar,
+  .stepper,
+  .book-toolbar,
+  .story-nav,
+  .demo-badge,
+  .error-message,
+  footer {
+    display: none !important;
+  }
+
+  .studio-shell,
+  .studio-shell.stage-book {
+    width: 100%;
+    padding: 0;
+  }
+
+  .studio-card {
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .book-spread,
+  .book-spread.current {
+    display: block;
+    min-height: 0;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .book-page-spread .story-image {
+    height: 60vh;
+  }
 }
 
 @media (max-width: 640px) {

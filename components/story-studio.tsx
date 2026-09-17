@@ -1,9 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import type { BilingualStory, DrawingAnalysis, LanguageMode } from "@/lib/story-types";
+import { StoryBookView } from "@/components/story-book";
+import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "@/lib/book-storage";
+import { demoSampleImagePath } from "@/lib/demo-data";
+import {
+  MAX_CHAPTERS,
+  type BilingualStory,
+  type DrawingAnalysis,
+  type LanguageMode,
+  type StoryBook
+} from "@/lib/story-types";
 import { transitionStage, type WizardStage } from "@/lib/wizard";
 
 const stageOrder: WizardStage[] = ["upload", "review", "language", "story", "offline"];
@@ -12,8 +21,41 @@ const stageLabels: Record<WizardStage, string> = {
   review: "부모 확인",
   language: "언어 고르기",
   story: "이야기 보기",
-  offline: "다시 그리기"
+  offline: "다시 그리기",
+  book: "동화책"
 };
+
+function browserStorage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** 브라우저 보관 용량을 아끼려고 긴 변 1280px JPEG로 줄인다. */
+function shrinkImage(dataUrl: string, maxSide = 1280) {
+  return new Promise<string>((resolve) => {
+    const image = new window.Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.naturalWidth * scale);
+      canvas.height = Math.round(image.naturalHeight * scale);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
 
 function readFile(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -24,7 +66,7 @@ function readFile(file: File) {
   });
 }
 
-function sampleToPng() {
+function sampleToPng(src: string) {
   return new Promise<string>((resolve, reject) => {
     const image = new window.Image();
     image.onload = () => {
@@ -40,7 +82,7 @@ function sampleToPng() {
       resolve(canvas.toDataURL("image/png"));
     };
     image.onerror = () => reject(new Error("예제 그림을 불러오지 못했어요."));
-    image.src = "/sample-drawing.svg";
+    image.src = src;
   });
 }
 
@@ -67,6 +109,23 @@ export function StoryStudio() {
   const [error, setError] = useState("");
   const [demoMode, setDemoMode] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [book, setBook] = useState<StoryBook | null>(null);
+
+  useEffect(() => {
+    const storage = browserStorage();
+    const saved = storage ? loadBook(storage) : null;
+    if (!saved) return;
+    setBook(saved);
+    if (!isBookFull(saved)) {
+      setNickname(saved.nickname);
+      setAge(saved.age);
+      setLanguage(saved.language);
+    }
+  }, []);
+
+  const bookFull = isBookFull(book);
+  const continuing = Boolean(book && book.chapters.length > 0 && !bookFull);
+  const chapterNumber = continuing && book ? book.chapters.length + 1 : 1;
 
   const activeStep = stageOrder.indexOf(stage);
   const currentPage = story?.pages[pageIndex];
@@ -100,8 +159,8 @@ export function StoryStudio() {
 
   async function useSample() {
     try {
-      setImageDataUrl(await sampleToPng());
-      setImageName("바닷가_그림일기_예제.png");
+      setImageDataUrl(await sampleToPng(demoSampleImagePath(chapterNumber)));
+      setImageName(`그림일기_예제_${chapterNumber}편.png`);
       setPrivacyChecked(true);
       setError("");
     } catch (caught) {
@@ -118,7 +177,7 @@ export function StoryStudio() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ imageDataUrl, nickname: nickname.trim(), age })
+        body: JSON.stringify({ imageDataUrl, nickname: nickname.trim(), age, chapter: chapterNumber })
       });
       const data = (await response.json()) as {
         analysis?: DrawingAnalysis;
@@ -144,7 +203,15 @@ export function StoryStudio() {
       const response = await fetch("/api/story", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ analysis, nickname: nickname.trim(), age })
+        body: JSON.stringify({
+          analysis,
+          nickname: nickname.trim(),
+          age,
+          previousChapters:
+            continuing && book
+              ? book.chapters.map((chapter) => ({ titleKo: chapter.story.titleKo, summaryKo: chapter.story.summaryKo }))
+              : []
+        })
       });
       const data = (await response.json()) as {
         story?: BilingualStory;
@@ -161,6 +228,48 @@ export function StoryStudio() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function finishChapter() {
+    if (!analysis || !story) return;
+    setBusy(true);
+    const storedImage = await shrinkImage(imageDataUrl);
+    const next = appendChapter(
+      book,
+      { imageDataUrl: storedImage, analysis, story },
+      { nickname: nickname.trim(), age, language }
+    );
+    setBook(next);
+    const storage = browserStorage();
+    const result = storage ? saveBook(storage, next) : { ok: false as const, message: "이 브라우저에서는 책을 보관할 수 없어요." };
+    setBusy(false);
+    go("offline");
+    if (!result.ok) setError(result.message);
+  }
+
+  function resetDrawing() {
+    setImageDataUrl("");
+    setImageName("");
+    setPrivacyChecked(false);
+    setAnalysis(null);
+    setStory(null);
+    setPageIndex(0);
+    setFinished(false);
+  }
+
+  function continueBook() {
+    resetDrawing();
+    go("upload");
+  }
+
+  function startNewBook() {
+    if (book && !window.confirm("지금 책을 지우고 새 책을 시작할까요? 필요하면 먼저 인쇄·PDF로 저장해주세요.")) return;
+    const storage = browserStorage();
+    if (storage) clearBook(storage);
+    setBook(null);
+    resetDrawing();
+    setError("");
+    setStage("upload");
   }
 
   function updateAnalysis<Key extends keyof DrawingAnalysis>(key: Key, value: DrawingAnalysis[Key]) {
@@ -193,12 +302,30 @@ export function StoryStudio() {
           <p className="brand-kicker">DrawTale</p>
           <h1>그림이야기</h1>
         </div>
-        <div className="step-count" aria-label={`전체 5단계 중 ${activeStep + 1}단계`}>
-          {progressLabel}
+        <div className="step-count" aria-label={stage === "book" ? "동화책 보기" : `전체 5단계 중 ${activeStep + 1}단계`}>
+          {stage === "book" ? "📖" : progressLabel}
         </div>
       </header>
 
-      {stage === "upload" ? (
+      {stage === "upload" && book ? (
+        <section className="book-banner">
+          <div>
+            <p className="eyebrow">{bookFull ? "완성된 동화책이 있어요" : `${chapterNumber}편 이어 그리기`}</p>
+            <b>📖 {book.chapters[0]?.story.titleKo} · {book.chapters.length}/{MAX_CHAPTERS}편</b>
+            <small>
+              {bookFull
+                ? "새 그림을 올리면 새 책이 시작돼요. 지금 책은 먼저 인쇄해두세요."
+                : `지난 이야기: ${book.chapters.at(-1)?.story.summaryKo}`}
+            </small>
+          </div>
+          <div className="book-banner-actions">
+            <button type="button" onClick={() => go("book")}>책 보기</button>
+            <button type="button" onClick={startNewBook}>새 책 시작</button>
+          </div>
+        </section>
+      ) : null}
+
+      {stage === "upload" && !book ? (
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <p className="eyebrow">그림일기 → 한국어·영어 동화</p>
@@ -216,6 +343,7 @@ export function StoryStudio() {
         </section>
       ) : null}
 
+      {stage !== "book" ? (
       <nav className="stepper" aria-label="이야기 만들기 진행 단계">
         {stageOrder.map((item, index) => (
           <div className={`step-dot ${index <= activeStep ? "active" : ""}`} key={item}>
@@ -224,6 +352,7 @@ export function StoryStudio() {
           </div>
         ))}
       </nav>
+      ) : null}
 
       <section className="studio-card">
         {stage !== "upload" && stage !== "offline" && backTarget[stage] ? (
@@ -239,8 +368,8 @@ export function StoryStudio() {
           <form className="stage-panel" onSubmit={analyzeDrawing}>
             <div className="stage-heading">
               <p className="eyebrow">부모님과 함께 시작해요</p>
-              <h2>오늘의 그림일기를 올려주세요</h2>
-              <p>그림과 손글씨를 AI가 함께 읽어요.</p>
+              <h2>{continuing ? "다음 장면 그림을 올려주세요" : "오늘의 그림일기를 올려주세요"}</h2>
+              <p>{continuing ? "AI가 지난 이야기에 이어서 새 편을 써요." : "그림과 손글씨를 AI가 함께 읽어요."}</p>
             </div>
 
             <label className={`upload-box ${imageDataUrl ? "has-image" : ""}`}>
@@ -272,7 +401,7 @@ export function StoryStudio() {
               <input type="checkbox" checked={privacyChecked} onChange={(event) => setPrivacyChecked(event.target.checked)} />
               <span>얼굴·학교명·주소·연락처가 보이지 않는 그림인지 확인했어요.</span>
             </label>
-            <p className="privacy-note">사진과 이야기는 저장하지 않고, 현재 이야기를 만드는 데만 사용해요.</p>
+            <p className="privacy-note">서버에는 저장하지 않아요. 만든 책은 이 기기 브라우저에만 보관되고 언제든 지울 수 있어요.</p>
             </div>
 
             <button className="primary-button" type="submit" disabled={!canSubmitUpload || busy}>
@@ -288,6 +417,9 @@ export function StoryStudio() {
               <p className="eyebrow">AI가 이렇게 이해했어요</p>
               <h2>이야기를 만들기 전에<br />부모님이 한 번 확인해주세요.</h2>
             </div>
+            {continuing && book ? (
+              <p className="previous-summary"><b>지난 이야기</b>{book.chapters.at(-1)?.story.summaryKo}</p>
+            ) : null}
             <div className="review-grid">
               <label><span>등장인물</span><input value={analysis.characters.join(", ")} onChange={(event) => updateAnalysis("characters", splitList(event.target.value))} /></label>
               <label><span>장소</span><input value={analysis.place} onChange={(event) => updateAnalysis("place", event.target.value)} /></label>
@@ -313,7 +445,11 @@ export function StoryStudio() {
               <button className={language === "both" ? "selected" : ""} type="button" onClick={() => setLanguage("both")}><span>🌈</span><b>한국어 + English</b><small>같은 이야기를 두 언어로</small></button>
             </div>
             <button className="primary-button" type="button" onClick={generateStory} disabled={busy}>
-              {busy ? "4페이지 이야기를 만드는 중이에요…" : "내 그림 이야기 만들기 →"}
+              {busy
+                ? "4페이지 이야기를 만드는 중이에요…"
+                : continuing
+                  ? `${chapterNumber}편 이어서 만들기 →`
+                  : "내 그림 이야기 만들기 →"}
             </button>
           </div>
         ) : null}
@@ -321,7 +457,7 @@ export function StoryStudio() {
         {stage === "story" && story && currentPage ? (
           <div className="story-stage">
             <div className="story-topline">
-              <div><p className="eyebrow">내 그림이 살아나는 이야기</p><h2>{language === "en" ? story.titleEn : story.titleKo}</h2></div>
+              <div><p className="eyebrow">{chapterNumber > 1 ? `${chapterNumber}편 · 이어지는 이야기` : "내 그림이 살아나는 이야기"}</p><h2>{language === "en" ? story.titleEn : story.titleKo}</h2></div>
               <strong>{pageIndex + 1} / {story.pages.length}</strong>
             </div>
             <div className="story-body">
@@ -353,7 +489,9 @@ export function StoryStudio() {
               {pageIndex < story.pages.length - 1 ? (
                 <button className="primary-inline" type="button" onClick={() => setPageIndex((index) => Math.min(story.pages.length - 1, index + 1))}>다음 장 →</button>
               ) : (
-                <button className="primary-inline" type="button" onClick={() => go("offline")}>나의 다음 이야기 →</button>
+                <button className="primary-inline" type="button" onClick={finishChapter} disabled={busy}>
+                  {busy ? "책에 담는 중…" : "책에 담고 다음으로 →"}
+                </button>
               )}
             </div>
           </div>
@@ -368,10 +506,34 @@ export function StoryStudio() {
               {language !== "en" ? <p>{story.offlinePromptKo}</p> : null}
               {language !== "ko" ? <p className="english-line">{story.offlinePromptEn}</p> : null}
             </div>
-            <div className="paper-prompt"><span>✏️</span><b>다음 장면을 종이에 그려보세요</b></div>
-            <button className="primary-button" type="button" onClick={() => setFinished(true)}>오늘은 여기까지 ✓</button>
+            {book && !bookFull ? (
+              <>
+                <div className="paper-prompt">
+                  <span>✏️</span>
+                  <b>다 그렸으면 사진을 올려 {book.chapters.length + 1}편을 이어가요</b>
+                  <small>지금까지 {book.chapters.length}/{MAX_CHAPTERS}편 · 책은 이 기기에 보관돼요</small>
+                </div>
+                <div className="offline-actions">
+                  <button className="primary-button" type="button" onClick={continueBook}>다음 장면 그림 올리기 →</button>
+                  <button className="secondary-button" type="button" onClick={() => go("book")}>지금까지 만든 책 보기</button>
+                  <button className="text-button" type="button" onClick={() => setFinished(true)}>오늘은 여기까지 ✓</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="paper-prompt"><span>🎉</span><b>{MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
+                <div className="offline-actions">
+                  <button className="primary-button" type="button" onClick={() => go("book")}>완성된 책 보기 📖</button>
+                  <button className="text-button" type="button" onClick={() => setFinished(true)}>오늘은 여기까지 ✓</button>
+                </div>
+              </>
+            )}
             {finished ? <p className="finish-message" role="status">잘했어요! 이제 종이와 색연필을 준비해볼까요?</p> : null}
           </div>
+        ) : null}
+
+        {stage === "book" && book ? (
+          <StoryBookView book={book} onContinue={continueBook} onNewBook={startNewBook} />
         ) : null}
       </section>
 

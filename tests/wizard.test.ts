@@ -9,7 +9,11 @@ describe("transitionStage", () => {
     ["story", "offline"],
     ["review", "upload"],
     ["language", "review"],
-    ["story", "language"]
+    ["story", "language"],
+    ["offline", "upload"],
+    ["offline", "book"],
+    ["upload", "book"],
+    ["book", "upload"]
   ])("%s에서 %s(으)로 이동한다", (from, to) => {
     expect(transitionStage(from, to)).toBe(to);
   });
@@ -18,7 +22,8 @@ describe("transitionStage", () => {
     ["upload", "story"],
     ["upload", "offline"],
     ["review", "offline"],
-    ["offline", "story"]
+    ["offline", "story"],
+    ["book", "story"]
   ])("허용되지 않은 %s→%s 이동은 현재 단계를 유지한다", (from, to) => {
     expect(transitionStage(from, to)).toBe(from);
   });

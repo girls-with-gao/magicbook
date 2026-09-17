@@ -1,5 +1,5 @@
 import { buildAnalysisPrompt } from "@/lib/ai-prompts";
-import { demoAnalysis } from "@/lib/demo-data";
+import { demoAnalysis, demoAnalysisFor } from "@/lib/demo-data";
 import { validateImageDataUrl } from "@/lib/image-validation";
 import { hasOpenAIKey, requestOpenAIJson } from "@/lib/openai";
 import type { DrawingAnalysis } from "@/lib/story-types";
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       imageDataUrl?: unknown;
       nickname?: unknown;
       age?: unknown;
+      chapter?: unknown;
     };
     const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
     const validation = validateImageDataUrl(imageDataUrl);
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     const age = Math.min(12, Math.max(5, Number(body.age) || 7));
 
     if (!hasOpenAIKey()) {
-      return Response.json({ analysis: demoAnalysis, demoMode: true }, { headers: noStoreHeaders });
+      return Response.json({ analysis: demoAnalysisFor(Number(body.chapter) || 1), demoMode: true }, { headers: noStoreHeaders });
     }
 
     const analysis = await requestOpenAIJson<Partial<DrawingAnalysis>>({

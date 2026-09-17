@@ -1,4 +1,4 @@
-import type { StoryRequest } from "./story-types";
+import { MAX_CHAPTERS, type PreviousChapter, type StoryRequest } from "./story-types";
 
 export function buildAnalysisPrompt({ nickname, age }: { nickname: string; age: number }) {
   return `
@@ -19,12 +19,35 @@ Use Korean. For unclear handwriting, write only the readable portion without inv
 `.trim();
 }
 
-export function buildStoryPrompt({ nickname, age, analysis }: StoryRequest) {
+function buildContinuationSection(previousChapters: PreviousChapter[]) {
+  if (!previousChapters.length) return "";
+  const chapterNumber = previousChapters.length + 1;
+  const history = previousChapters
+    .map((chapter, index) => `${index + 1}. ${chapter.titleKo} — ${chapter.summaryKo}`)
+    .join("\n");
+  const ending =
+    chapterNumber >= MAX_CHAPTERS
+      ? `
+- This is the final chapter: resolve the adventure warmly and end the last page with "끝." and "The end."
+- The offline drawing prompt should invite the child to draw the cover of this book on paper.`
+      : "";
+  return `
+This is chapter ${chapterNumber} of ${MAX_CHAPTERS} in the same picture book.
+Previous chapters:
+${history}
+
+Continuation rules:
+- Keep the same characters, names, and world, and continue naturally from the last chapter.
+- The new drawing is the child's idea for the next scene; weave its content in as what happens next.${ending}
+`;
+}
+
+export function buildStoryPrompt({ nickname, age, analysis, previousChapters = [] }: StoryRequest) {
   return `
 You create a safe, warm story for a ${age}-year-old child using the nickname "${nickname}".
 Use only this parent-confirmed drawing diary analysis:
 ${JSON.stringify(analysis)}
-
+${buildContinuationSection(previousChapters)}
 Requirements:
 - Return exactly 4 pages.
 - Every page must contain matching Korean and English sentences.
@@ -49,7 +72,8 @@ Return only this JSON object:
     }
   ],
   "offlinePromptKo": "string",
-  "offlinePromptEn": "string"
+  "offlinePromptEn": "string",
+  "summaryKo": "two short Korean sentences summarizing this chapter, used to continue the book"
 }
 `.trim();
 }

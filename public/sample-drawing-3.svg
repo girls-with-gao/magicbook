@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" rx="30" fill="#2f5d8a"/>
+  <path d="M0 640 Q250 600 500 640 T1000 630 V760 H0Z" fill="#c9a86b"/>
+  <g fill="none" stroke="#ff7f7f" stroke-width="18" stroke-linecap="round">
+    <path d="M160 640 V480 M160 540 L110 480 M160 520 L210 450"/>
+    <path d="M840 640 V500 M840 560 L890 500 M840 540 L790 470"/>
+  </g>
+  <path d="M520 260 Q620 170 720 260 Z" fill="#f3b8ff" stroke="#fff6c8" stroke-width="10"/>
+  <g stroke="#f3b8ff" stroke-width="10" fill="none" stroke-linecap="round">
+    <path d="M550 265 Q540 320 560 370"/><path d="M600 265 Q610 330 590 390"/><path d="M650 265 Q640 320 665 380"/><path d="M695 265 Q705 310 690 350"/>
+  </g>
+  <circle cx="620" cy="220" r="150" fill="#fff6c8" opacity="0.15"/>
+  <path d="M260 390 Q320 340 380 390 Q320 440 260 390Z" fill="#ffd55d" stroke="#9c7342" stroke-width="10"/>
+  <path d="M380 390 L420 355 L420 425Z" fill="#ffd55d" stroke="#9c7342" stroke-width="10"/>
+  <circle cx="340" cy="530" r="45" fill="#f4c49b" stroke="#fff" stroke-width="10"/>
+  <text x="80" y="100" font-family="sans-serif" font-size="43" font-weight="700" fill="#fffdf6">깊은 바다에서 반짝이는</text>
+  <text x="80" y="160" font-family="sans-serif" font-size="43" font-weight="700" fill="#fffdf6">해파리를 만났다.</text>
+</svg>

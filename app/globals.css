@@ -7,6 +7,13 @@
   --sky: #dff3ff;
   --mint: #dcf4e6;
   --line: #e7ddd0;
+  /* 신뢰가 필요한 곳(개인정보·부모 확인) */
+  --green: #1d7d6b;
+  --green-dark: #0f594c;
+  --green-soft: #e8f6f1;
+  /* 이야기 장식 포인트 */
+  --yellow: #f7c948;
+  --blue: #3577c8;
 }
 
 * {
@@ -25,7 +32,8 @@ body {
     radial-gradient(circle at 10% 10%, rgba(223, 243, 255, 0.9), transparent 28rem),
     radial-gradient(circle at 90% 16%, rgba(220, 244, 230, 0.9), transparent 25rem),
     var(--paper);
-  font-family: Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  word-break: keep-all;
 }
 
 button,
@@ -55,6 +63,101 @@ button:disabled {
   width: min(100% - 28px, 760px);
   margin: 0 auto;
   padding: 24px 0 34px;
+}
+
+/* 첫 화면과 이야기 화면은 넓은 화면에서 폭을 넓혀 2단으로 보여준다 */
+@media (min-width: 900px) {
+  .studio-shell.stage-upload,
+  .studio-shell.stage-story {
+    width: min(100% - 48px, 1040px);
+  }
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 22px;
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background:
+    linear-gradient(115deg, rgba(29, 125, 107, 0.12), rgba(247, 201, 72, 0.14)),
+    #fffdf7;
+}
+
+.hero h2 {
+  margin: 0;
+  font-size: clamp(32px, 5.4vw, 58px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.hero .eyebrow {
+  color: var(--green-dark);
+}
+
+.hero-lead {
+  max-width: 480px;
+  margin: 16px 0 0;
+  color: #5c5049;
+  font-size: clamp(15px, 1.8vw, 18px);
+  line-height: 1.6;
+}
+
+.hero-preview {
+  position: relative;
+  min-height: 250px;
+}
+
+.paper {
+  position: absolute;
+  width: min(80%, 280px);
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 0 12px 0 rgba(57, 47, 42, 0.08);
+}
+
+.paper-one {
+  right: 36px;
+  top: 6px;
+  rotate: 8deg;
+}
+
+.paper-two {
+  right: 76px;
+  top: 40px;
+  rotate: -7deg;
+  background: var(--sky);
+}
+
+.paper-three {
+  right: 14px;
+  top: 76px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 34% 40%, var(--coral) 0 10%, transparent 11%),
+    radial-gradient(circle at 64% 52%, var(--yellow) 0 12%, transparent 13%),
+    linear-gradient(145deg, #fff9e7, var(--mint));
+}
+
+.paper-three span {
+  width: 72px;
+  height: 72px;
+  border: 7px solid var(--blue);
+  border-radius: 50% 46% 52% 42%;
+}
+
+.paper-three strong {
+  position: absolute;
+  bottom: 16px;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-style: italic;
 }
 
 .brand-bar {
@@ -338,6 +441,37 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.trust-box {
+  margin-top: 16px;
+  padding: 14px 16px 4px;
+  border: 1px solid #bfe3d6;
+  border-radius: 18px;
+  background: var(--green-soft);
+}
+
+.trust-box .privacy-check {
+  margin-top: 0;
+  color: var(--green-dark);
+}
+
+.trust-box .privacy-check input {
+  accent-color: var(--green);
+}
+
+.trust-panel .eyebrow {
+  color: var(--green-dark);
+}
+
+.trust-panel .stage-emoji {
+  background: var(--green-soft);
+}
+
+.trust-panel input:focus,
+.trust-panel textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(29, 125, 107, 0.16);
+}
+
 .privacy-check {
   display: flex;
   gap: 10px;
@@ -356,8 +490,9 @@ textarea:focus {
 }
 
 .privacy-note {
-  margin: 8px 0 18px;
+  margin: 8px 0 10px;
   padding-left: 32px;
+  color: #3f6d61;
   line-height: 1.5;
 }
 
@@ -374,6 +509,7 @@ textarea:focus {
 
 .primary-button {
   width: 100%;
+  margin-top: 8px;
   padding: 12px 18px;
 }
 
@@ -500,6 +636,30 @@ textarea:focus {
   text-align: center;
 }
 
+@media (min-width: 900px) {
+  .story-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 32px;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .story-body .story-image {
+    height: 440px;
+  }
+
+  .story-body .story-copy {
+    padding: 0;
+    text-align: left;
+  }
+
+  .story-body .listen-row,
+  .story-body .word-row {
+    justify-content: flex-start;
+  }
+}
+
 .korean-line,
 .english-line {
   margin: 0;
@@ -513,7 +673,7 @@ textarea:focus {
 
 .english-line {
   margin-top: 8px;
-  color: #4f6796;
+  color: #2f67ad;
   font-size: clamp(15px, 3.2vw, 19px);
   font-weight: 700;
 }
@@ -640,6 +800,15 @@ footer {
 
   .brand-bar h1 {
     font-size: 19px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    border-radius: 23px;
+  }
+
+  .hero-preview {
+    display: none;
   }
 
   .step-dot small {

@@ -186,7 +186,7 @@ export function StoryStudio() {
   };
 
   return (
-    <div className="studio-shell">
+    <div className={`studio-shell stage-${stage}`}>
       <header className="brand-bar">
         <div className="brand-mark" aria-hidden="true">✎</div>
         <div>
@@ -197,6 +197,24 @@ export function StoryStudio() {
           {progressLabel}
         </div>
       </header>
+
+      {stage === "upload" ? (
+        <section className="hero" aria-labelledby="hero-title">
+          <div className="hero-copy">
+            <p className="eyebrow">그림일기 → 한국어·영어 동화</p>
+            <h2 id="hero-title">아이 그림이<br />동화가 되는 순간</h2>
+            <p className="hero-lead">그림일기를 올리면 AI가 아이의 상상을 4페이지 동화와 쉬운 영어 이야기로 열어줘요.</p>
+          </div>
+          <div className="hero-preview" aria-hidden="true">
+            <div className="paper paper-one" />
+            <div className="paper paper-two" />
+            <div className="paper paper-three">
+              <span />
+              <strong>Once upon a time</strong>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <nav className="stepper" aria-label="이야기 만들기 진행 단계">
         {stageOrder.map((item, index) => (
@@ -220,9 +238,8 @@ export function StoryStudio() {
         {stage === "upload" ? (
           <form className="stage-panel" onSubmit={analyzeDrawing}>
             <div className="stage-heading">
-              <span className="stage-emoji" aria-hidden="true">🖼️</span>
               <p className="eyebrow">부모님과 함께 시작해요</p>
-              <h2>오늘의 그림일기를<br />이야기로 만들어볼까요?</h2>
+              <h2>오늘의 그림일기를 올려주세요</h2>
               <p>그림과 손글씨를 AI가 함께 읽어요.</p>
             </div>
 
@@ -250,11 +267,13 @@ export function StoryStudio() {
               </label>
             </div>
 
+            <div className="trust-box">
             <label className="privacy-check">
               <input type="checkbox" checked={privacyChecked} onChange={(event) => setPrivacyChecked(event.target.checked)} />
               <span>얼굴·학교명·주소·연락처가 보이지 않는 그림인지 확인했어요.</span>
             </label>
             <p className="privacy-note">사진과 이야기는 저장하지 않고, 현재 이야기를 만드는 데만 사용해요.</p>
+            </div>
 
             <button className="primary-button" type="submit" disabled={!canSubmitUpload || busy}>
               {busy ? "그림 속 이야기를 찾고 있어요…" : "이야기 시작하기 →"}
@@ -263,7 +282,7 @@ export function StoryStudio() {
         ) : null}
 
         {stage === "review" && analysis ? (
-          <div className="stage-panel compact-panel">
+          <div className="stage-panel compact-panel trust-panel">
             <div className="stage-heading">
               <span className="stage-emoji" aria-hidden="true">🔎</span>
               <p className="eyebrow">AI가 이렇게 이해했어요</p>
@@ -305,6 +324,7 @@ export function StoryStudio() {
               <div><p className="eyebrow">내 그림이 살아나는 이야기</p><h2>{language === "en" ? story.titleEn : story.titleKo}</h2></div>
               <strong>{pageIndex + 1} / {story.pages.length}</strong>
             </div>
+            <div className="story-body">
             <div className="story-image">
               <Image
                 src={imageDataUrl}
@@ -326,6 +346,7 @@ export function StoryStudio() {
               <div className="word-row">
                 {currentPage.words.map((word) => <span key={`${word.ko}-${word.en}`}>{word.ko} · {word.en}</span>)}
               </div>
+            </div>
             </div>
             <div className="story-nav">
               <button type="button" disabled={pageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>← 이전 장</button>

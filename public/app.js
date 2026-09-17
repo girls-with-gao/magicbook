@@ -33,6 +33,25 @@ let characterName = "";
 const moods = ["짜잔!", "와!", "?", "좋아!", "다음?"];
 const sceneClasses = ["scene-dino", "scene-magic", "scene-sea", "scene-night"];
 
+const compositionDefaults = [
+  { framing: "close", textSide: "right", left: "30%", bottom: "6%", width: "58%", height: "76%" },
+  { framing: "wide", textSide: "right", left: "18%", bottom: "5%", width: "30%", height: "46%" },
+  { framing: "medium", textSide: "left", left: "58%", bottom: "7%", width: "43%", height: "58%" },
+  { framing: "wide", textSide: "left", left: "68%", bottom: "5%", width: "28%", height: "44%" }
+];
+
+function getComposition(page, index) {
+  const fallback = compositionDefaults[index % compositionDefaults.length];
+  const framing = ["close", "medium", "wide"].includes(page.framing) ? page.framing : fallback.framing;
+  const textSide = page.textSide === "left" || page.textSide === "right" ? page.textSide : fallback.textSide;
+  const byFraming = {
+    close: { left: textSide === "left" ? "68%" : "30%", bottom: "5%", width: "58%", height: "78%" },
+    medium: { left: textSide === "left" ? "60%" : "32%", bottom: "7%", width: "44%", height: "60%" },
+    wide: { left: textSide === "left" ? "70%" : "17%", bottom: "5%", width: "29%", height: "45%" }
+  };
+  return { framing, textSide, ...(byFraming[framing] || fallback) };
+}
+
 function getSelected(group) {
   return document.querySelector(`[data-name="${group}"] .selected`)?.dataset.value;
 }
@@ -142,6 +161,7 @@ function renderStory() {
   const storyPage = pages[currentPage] || { ko: "", en: "" };
   const characterLabel = [characterName, characterIdentity].filter(Boolean).join(" · ") || "아이 그림 주인공";
   const scene = sceneClasses[currentPage % sceneClasses.length];
+  const composition = getComposition(storyPage, currentPage);
 
   storyTitle.textContent = currentStory.title || "매직북";
   pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
@@ -152,16 +172,29 @@ function renderStory() {
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;
   nextPage.disabled = currentPage === totalPages - 1;
-  generatedPageArt.src = storyPage.imageDataUrl || "";
+  if (storyPage.imageDataUrl) {
+    generatedPageArt.src = storyPage.imageDataUrl;
+  } else {
+    generatedPageArt.removeAttribute("src");
+  }
   bookPage.classList.toggle("has-generated-art", Boolean(storyPage.imageDataUrl));
-  storybookScene.hidden = !characterCutoutDataUrl;
-  pageArt.src = characterCutoutDataUrl;
-  pageArt.style.setProperty("--character-tilt", `${[-4, 3, -1, 5, -3][currentPage % 5]}deg`);
-  pageArt.style.setProperty("--character-scale", `${[1.06, 0.98, 1.02, 0.96, 1.04][currentPage % 5]}`);
+  storybookScene.hidden = !characterCutoutDataUrl && !storyPage.imageDataUrl;
+  if (characterCutoutDataUrl) {
+    pageArt.src = characterCutoutDataUrl;
+  } else {
+    pageArt.removeAttribute("src");
+  }
+  pageArt.style.setProperty("--character-left", composition.left);
+  pageArt.style.setProperty("--character-bottom", composition.bottom);
+  pageArt.style.setProperty("--character-width", composition.width);
+  pageArt.style.setProperty("--character-height", composition.height);
+  pageArt.style.setProperty("--character-tilt", `${[-3, 2, -1, 3][currentPage % 4]}deg`);
   moodBadge.textContent = moods[currentPage % moods.length];
-  moodBadge.hidden = !uploadedImageDataUrl;
+  moodBadge.hidden = true;
   bookPage.classList.remove(...sceneClasses);
   bookPage.classList.add(scene);
+  storybookScene.classList.remove("framing-close", "framing-medium", "framing-wide", "text-left", "text-right");
+  storybookScene.classList.add(`framing-${composition.framing}`, `text-${composition.textSide}`);
 
   promptList.innerHTML = "";
   (currentStory.prompts || []).forEach((prompt) => {

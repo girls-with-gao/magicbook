@@ -302,6 +302,8 @@ async function generatePageImages(payload, story) {
 async function generatePageImage(payload, story, page, index) {
   const apiKey = process.env.OPENAI_API_KEY;
   const prompt = buildImagePrompt(payload, story, page, index);
+  const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const primaryTool = buildImageTool(imageModel);
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -319,15 +321,43 @@ async function generatePageImage(payload, story, page, index) {
           ]
         }
       ],
-      tools: [
+      tools: [primaryTool]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    if (primaryTool.input_fidelity) {
+      return generatePageImageWithTool(apiKey, prompt, payload.imageDataUrl, buildImageTool("gpt-image-1-mini"));
+    }
+    throw new Error(`image generation failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const base64 = findGeneratedImage(data);
+  if (!base64) throw new Error("image generation response did not include an image");
+  return `data:image/png;base64,${base64}`;
+}
+
+async function generatePageImageWithTool(apiKey, prompt, imageDataUrl, tool) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      input: [
         {
-          type: "image_generation",
-          model: "gpt-image-1-mini",
-          quality: "low",
-          size: "1024x1024",
-          output_format: "png"
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            { type: "input_image", image_url: imageDataUrl }
+          ]
         }
-      ]
+      ],
+      tools: [tool]
     })
   });
 
@@ -342,14 +372,32 @@ async function generatePageImage(payload, story, page, index) {
   return `data:image/png;base64,${base64}`;
 }
 
+function buildImageTool(model) {
+  const tool = {
+    type: "image_generation",
+    model,
+    quality: "low",
+    size: "1024x1024",
+    output_format: "png"
+  };
+
+  if (model === "gpt-image-1") {
+    tool.input_fidelity = "high";
+  }
+
+  return tool;
+}
+
 function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index) {
   const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
   return `
 Create one Korean children's picture-book illustration page.
 
 Reference image: the uploaded child drawing. Use it as the core character design.
-The character may be cleaned up into a soft picture-book illustration, but it must clearly preserve the child's original drawing's identity, silhouette, colors, and quirky proportions.
-Do not replace it with a generic polished character. If it looks like a dog but the child says it is a triceratops, it is a triceratops with the child's drawn shape.
+The character may be cleaned up into a soft picture-book illustration, but visual fidelity to the child drawing is more important than anatomical correctness.
+Preserve the child's original drawing's identity, silhouette, colors, proportions, face placement, number and placement of horns/eyes/legs, and quirky childlike shape.
+Do not replace it with a generic polished dinosaur or realistic museum dinosaur. If it looks like a dog but the child says it is a triceratops, draw a triceratops that still looks like the child's drawing.
+Keep the main character simple, child-drawn, rounded, imperfect, and recognizable as the uploaded drawing.
 
 Child: ${childName || "아이"}
 Character: ${hero}
@@ -362,7 +410,8 @@ Page ${index + 1} Korean text: ${page.ko}
 Visual direction:
 - Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
 - One full-page illustration with the character acting in the scene.
-- Leave calm empty space near the bottom or side for Korean caption overlay; do not draw any readable text, letters, labels, logos, or page numbers.
+- Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
+- Leave the picture itself clean; Korean story text will be rendered separately by the app.
 - Safe, cozy, age-appropriate, no scary or violent elements.
 `;
 }

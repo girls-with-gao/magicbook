@@ -500,24 +500,6 @@ h2 {
   z-index: 4;
 }
 
-.scene-caption {
-  position: absolute;
-  left: 28px;
-  right: 28px;
-  bottom: 24px;
-  margin: 0;
-  border: 2px solid rgba(31, 41, 55, 0.86);
-  border-radius: 8px;
-  padding: 14px 16px;
-  background: rgba(255, 253, 247, 0.9);
-  color: var(--ink);
-  font-size: clamp(20px, 2.3vw, 30px);
-  font-weight: 900;
-  line-height: 1.35;
-  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.12);
-  z-index: 5;
-}
-
 .page-copy {
   display: grid;
   align-content: center;
@@ -632,12 +614,6 @@ li {
     min-height: 300px;
   }
 
-  .scene-caption {
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    font-size: 18px;
-  }
 }
 
 @media (max-width: 560px) {

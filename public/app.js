@@ -12,7 +12,6 @@ const storybookScene = document.querySelector("#storybook-scene");
 const generatedPageArt = document.querySelector("#generated-page-art");
 const pageArt = document.querySelector("#page-art");
 const moodBadge = document.querySelector("#mood-badge");
-const sceneCaption = document.querySelector("#scene-caption");
 const characterLine = document.querySelector("#character-line");
 const pageKo = document.querySelector("#page-ko");
 const pageEn = document.querySelector("#page-en");
@@ -149,7 +148,6 @@ function renderStory() {
   pageKo.textContent = storyPage.ko;
   pageEn.textContent = storyPage.en;
   characterLine.textContent = `아이 그림 기반 생성 · ${characterLabel}`;
-  sceneCaption.textContent = storyPage.ko;
   storyNote.textContent = currentStory.note || "";
   storyNote.hidden = !currentStory.note;
   prevPage.disabled = currentPage === 0;

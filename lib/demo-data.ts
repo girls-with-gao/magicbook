@@ -1,4 +1,13 @@
-import { MAX_CHAPTERS, type BilingualStory, type DrawingAnalysis } from "./story-types";
+import {
+  MAX_CHAPTERS,
+  OPENING_PAGES,
+  type BilingualStory,
+  type ChildChoice,
+  type DrawingAnalysis,
+  type StoryChoice,
+  type StoryEnding,
+  type StoryOpening
+} from "./story-types";
 
 function hasKoreanFinalConsonant(value: string) {
   const lastCharacter = value.trim().at(-1);
@@ -258,4 +267,105 @@ export function createDemoStory({
   ];
 
   return chapters[chapterIndex(chapter)];
+}
+
+type DemoBranch = { questionKo: string; questionEn: string; choices: StoryChoice[] };
+
+/** 편마다 2페이지 뒤에 나오는 갈림길. 첫 번째 카드가 원래 예제 이야기로 이어진다. */
+const demoBranches: DemoBranch[] = [
+  {
+    questionKo: "반짝이는 조개에게 무엇을 해볼까?",
+    questionEn: "What should we do with the shiny shell?",
+    choices: [
+      { emoji: "👂", ko: "조개 소리 들어보기", en: "Listen to the shell" },
+      { emoji: "🎵", ko: "조개에게 노래 불러주기", en: "Sing to the shell" },
+      { emoji: "👋", ko: "조개에게 인사하기", en: "Say hello to the shell" }
+    ]
+  },
+  {
+    questionKo: "방울이와 무엇을 해볼까?",
+    questionEn: "What should we do with Bubbles?",
+    choices: [
+      { emoji: "🏠", ko: "마을 구경하기", en: "Look around the village" },
+      { emoji: "🫧", ko: "같이 헤엄치기", en: "Swim together" },
+      { emoji: "🎁", ko: "선물 주기", en: "Give a present" }
+    ]
+  },
+  {
+    questionKo: "혼자 있는 해파리에게 어떻게 할까?",
+    questionEn: "What should we do for the lonely jellyfish?",
+    choices: [
+      { emoji: "🤝", ko: "친구 하자고 하기", en: "Ask to be friends" },
+      { emoji: "🎶", ko: "같이 노래하기", en: "Sing together" },
+      { emoji: "🐟", ko: "방울이 소개하기", en: "Introduce Bubbles" }
+    ]
+  },
+  {
+    questionKo: "환해진 마을에서 무엇을 할까?",
+    questionEn: "What should we do in the bright village?",
+    choices: [
+      { emoji: "💃", ko: "다 같이 춤추기", en: "Dance together" },
+      { emoji: "🎉", ko: "축하 파티 열기", en: "Throw a party" },
+      { emoji: "🌟", ko: "불빛 구경하기", en: "Watch the lights" }
+    ]
+  }
+];
+
+export function createDemoOpening({
+  nickname = "수민",
+  age = 7,
+  chapter = 1
+}: {
+  nickname?: string;
+  age?: number;
+  chapter?: number;
+}): StoryOpening {
+  const full = createDemoStory({ nickname, age, chapter });
+  return {
+    titleKo: full.titleKo,
+    titleEn: full.titleEn,
+    pages: full.pages.slice(0, OPENING_PAGES),
+    ...demoBranches[chapterIndex(chapter)]
+  };
+}
+
+export function createDemoEnding({
+  nickname = "수민",
+  age = 7,
+  chapter = 1,
+  choice
+}: {
+  nickname?: string;
+  age?: number;
+  chapter?: number;
+  choice: ChildChoice;
+}): StoryEnding {
+  const full = createDemoStory({ nickname, age, chapter });
+  const [canonicalPage, lastPage] = full.pages.slice(OPENING_PAGES);
+  const canonical = demoBranches[chapterIndex(chapter)].choices[0];
+  const endingOf = (pages: StoryEnding["pages"], summaryKo: string): StoryEnding => ({
+    pages,
+    offlinePromptKo: full.offlinePromptKo,
+    offlinePromptEn: full.offlinePromptEn,
+    summaryKo
+  });
+
+  if (!choice.byVoice && choice.ko === canonical.ko) {
+    return endingOf([canonicalPage, lastPage], full.summaryKo);
+  }
+
+  const name = nickname.trim() || "아이";
+  const nameTopic = childNameWithParticle(name, "이는", "는");
+  const choicePage = {
+    ko: `“${choice.ko}!” ${nameTopic} 마음을 정했어요. 모두가 활짝 웃었어요.`,
+    en: choice.en
+      ? `"${choice.en}!" ${name} decided, and everyone smiled.`
+      : `${name} shared a wonderful idea, and everyone smiled.`,
+    words: [
+      { ko: "정하다", en: "decide" },
+      { ko: "웃다", en: "smile" }
+    ],
+    focus: canonicalPage.focus
+  };
+  return endingOf([choicePage, lastPage], `${full.summaryKo} ${name}의 선택: ${choice.ko}.`);
 }

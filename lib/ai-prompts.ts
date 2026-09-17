@@ -1,4 +1,12 @@
-import { MAX_CHAPTERS, type PreviousChapter, type StoryRequest } from "./story-types";
+import {
+  CHOICE_COUNT,
+  MAX_CHAPTERS,
+  OPENING_PAGES,
+  STORY_PAGES,
+  type EndingRequest,
+  type PreviousChapter,
+  type StoryRequest
+} from "./story-types";
 
 export function buildAnalysisPrompt({ nickname, age }: { nickname: string; age: number }) {
   return `
@@ -42,38 +50,92 @@ Continuation rules:
 `;
 }
 
-export function buildStoryPrompt({ nickname, age, analysis, previousChapters = [] }: StoryRequest) {
+const pageJson = `{
+      "ko": "string",
+      "en": "string",
+      "words": [{ "ko": "string", "en": "string" }],
+      "focus": { "x": 50, "y": 50 }
+    }`;
+
+function sharedRules(age: number) {
+  return `- Every page must contain matching Korean and English sentences.
+- Use short, age-appropriate language for a ${age}-year-old; the full ${STORY_PAGES}-page story reads in about 3 minutes.
+- Each page may contain at most 2 vocabulary words, paired as Korean and English.
+- Preserve the child's imagination; do not claim new artwork was generated.
+- Avoid violence, fear, advertising, scoring, streaks, and addictive hooks.
+- Focus coordinates are percentages from 0 to 100 and should vary gently by page.`;
+}
+
+/** 1단계: 앞 2페이지를 쓰고, 아이가 고를 갈림길 질문과 카드 3장을 만든다. */
+export function buildOpeningPrompt({ nickname, age, analysis, previousChapters = [] }: StoryRequest) {
   return `
-You create a safe, warm story for a ${age}-year-old child using the nickname "${nickname}".
+You create a safe, warm, interactive story for a ${age}-year-old child using the nickname "${nickname}".
+The child will choose what happens next, so write only the beginning.
 Use only this parent-confirmed drawing diary analysis:
 ${JSON.stringify(analysis)}
 ${buildContinuationSection(previousChapters)}
 Requirements:
-- Return exactly 4 pages.
-- Every page must contain matching Korean and English sentences.
-- Use age-appropriate, short language that can be read in about 3 minutes total.
-- Each page may contain at most 2 vocabulary words, paired as Korean and English.
-- Preserve the child's imagination; do not claim new artwork was generated.
-- The final page must gently open the ending.
-- End with an offline drawing prompt that asks the child to leave the screen and draw the next scene on paper.
-- Avoid violence, fear, advertising, scoring, streaks, and addictive hooks.
-- Focus coordinates are percentages from 0 to 100 and should vary gently by page.
+- Return exactly ${OPENING_PAGES} pages: pages 1-${OPENING_PAGES} of a ${STORY_PAGES}-page story. Do not resolve anything yet.
+- Page ${OPENING_PAGES} must end at a clear decision point for ${nickname}.
+- Ask one very short question a child can answer (Korean and English), e.g. "조개에게 무엇을 해볼까?".
+- Offer exactly ${CHOICE_COUNT} choices. Each choice is one short action phrase (max 12 Korean characters) with one fitting emoji.
+- Choices must be clearly different from each other, all kind and safe, and none may be "wrong".
+${sharedRules(age)}
 
 Return only this JSON object:
 {
   "titleKo": "string",
   "titleEn": "string",
   "pages": [
-    {
-      "ko": "string",
-      "en": "string",
-      "words": [{ "ko": "string", "en": "string" }],
-      "focus": { "x": 50, "y": 50 }
-    }
+    ${pageJson}
+  ],
+  "questionKo": "string",
+  "questionEn": "string",
+  "choices": [{ "emoji": "string", "ko": "string", "en": "string" }]
+}
+`.trim();
+}
+
+/** 2단계: 아이가 고른(또는 말한) 선택을 반영해 뒤 2페이지를 쓴다. */
+export function buildEndingPrompt({
+  nickname,
+  age,
+  analysis,
+  previousChapters = [],
+  opening,
+  choice
+}: EndingRequest) {
+  const openingText = opening.pages.map((page, index) => `${index + 1}. ${page.ko} / ${page.en}`).join("\n");
+  const source = choice.byVoice
+    ? "The child said this idea out loud (speech recognition may contain small errors; keep its intent)"
+    : "The child picked this card";
+  return `
+You continue a safe, warm, interactive story for a ${age}-year-old child using the nickname "${nickname}".
+Drawing diary analysis confirmed by a parent:
+${JSON.stringify(analysis)}
+${buildContinuationSection(previousChapters)}
+Story so far — "${opening.titleKo}" / "${opening.titleEn}":
+${openingText}
+
+Question asked: ${opening.questionKo}
+${source}: "${choice.ko}"${choice.en && choice.en !== choice.ko ? ` / "${choice.en}"` : ""}
+
+Requirements:
+- Return exactly ${STORY_PAGES - OPENING_PAGES} pages: pages ${OPENING_PAGES + 1}-${STORY_PAGES}.
+- Page ${OPENING_PAGES + 1} must show the child's choice happening, clearly and respectfully. The child's idea is the turning point.
+- If the idea is unsafe or unclear, gently turn it into a kind, safe version with the same spirit instead of ignoring it.
+- The final page must gently open the ending.
+- End with an offline drawing prompt that asks the child to leave the screen and draw the next scene on paper.
+${sharedRules(age)}
+
+Return only this JSON object:
+{
+  "pages": [
+    ${pageJson}
   ],
   "offlinePromptKo": "string",
   "offlinePromptEn": "string",
-  "summaryKo": "two short Korean sentences summarizing this chapter, used to continue the book"
+  "summaryKo": "two short Korean sentences summarizing the whole ${STORY_PAGES}-page chapter, including the child's choice"
 }
 `.trim();
 }

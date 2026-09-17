@@ -3,15 +3,22 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { ChoicePicker } from "@/components/choice-picker";
 import { StoryBookView } from "@/components/story-book";
 import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "@/lib/book-storage";
 import { demoSampleImagePath } from "@/lib/demo-data";
+import { combineStory } from "@/lib/story-normalize";
 import {
   MAX_CHAPTERS,
+  OPENING_PAGES,
+  STORY_PAGES,
   type BilingualStory,
+  type ChildChoice,
   type DrawingAnalysis,
   type LanguageMode,
-  type StoryBook
+  type StoryBook,
+  type StoryEnding,
+  type StoryOpening
 } from "@/lib/story-types";
 import { transitionStage, type WizardStage } from "@/lib/wizard";
 
@@ -103,6 +110,8 @@ export function StoryStudio() {
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
   const [language, setLanguage] = useState<LanguageMode>("both");
+  const [opening, setOpening] = useState<StoryOpening | null>(null);
+  const [choosing, setChoosing] = useState(false);
   const [story, setStory] = useState<BilingualStory | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -128,7 +137,9 @@ export function StoryStudio() {
   const chapterNumber = continuing && book ? book.chapters.length + 1 : 1;
 
   const activeStep = stageOrder.indexOf(stage);
-  const currentPage = story?.pages[pageIndex];
+  const storyPages = story?.pages ?? opening?.pages ?? [];
+  const currentPage = storyPages[pageIndex];
+  const storyTitle = story ?? opening;
   const progressLabel = `${activeStep + 1} / ${stageOrder.length}`;
 
   const canSubmitUpload = useMemo(
@@ -195,6 +206,53 @@ export function StoryStudio() {
     }
   }
 
+  function storyRequestBase() {
+    return {
+      analysis,
+      nickname: nickname.trim(),
+      age,
+      previousChapters:
+        continuing && book
+          ? book.chapters.map((chapter) => ({ titleKo: chapter.story.titleKo, summaryKo: chapter.story.summaryKo }))
+          : []
+    };
+  }
+
+  function startChoosing() {
+    if (!opening) return;
+    setChoosing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (language === "en") speak(opening.questionEn || opening.questionKo, "en-US");
+    else speak(opening.questionKo, "ko-KR");
+  }
+
+  async function chooseNext(choice: ChildChoice) {
+    if (!opening) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/story", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ phase: "ending", ...storyRequestBase(), opening, choice })
+      });
+      const data = (await response.json()) as {
+        ending?: StoryEnding;
+        demoMode?: boolean;
+        error?: string;
+      };
+      if (!response.ok || !data.ending) throw new Error(data.error || "이야기를 이어 쓰지 못했어요.");
+      setStory(combineStory(opening, data.ending, choice));
+      setDemoMode((current) => current || Boolean(data.demoMode));
+      setChoosing(false);
+      setPageIndex(OPENING_PAGES);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "이야기를 이어 쓰지 못했어요. 다시 골라볼까요?");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function generateStory() {
     if (!analysis) return;
     setBusy(true);
@@ -203,23 +261,17 @@ export function StoryStudio() {
       const response = await fetch("/api/story", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          analysis,
-          nickname: nickname.trim(),
-          age,
-          previousChapters:
-            continuing && book
-              ? book.chapters.map((chapter) => ({ titleKo: chapter.story.titleKo, summaryKo: chapter.story.summaryKo }))
-              : []
-        })
+        body: JSON.stringify({ phase: "opening", ...storyRequestBase() })
       });
       const data = (await response.json()) as {
-        story?: BilingualStory;
+        opening?: StoryOpening;
         demoMode?: boolean;
         error?: string;
       };
-      if (!response.ok || !data.story) throw new Error(data.error || "이야기를 만들지 못했어요.");
-      setStory(data.story);
+      if (!response.ok || !data.opening) throw new Error(data.error || "이야기를 만들지 못했어요.");
+      setOpening(data.opening);
+      setStory(null);
+      setChoosing(false);
       setPageIndex(0);
       setDemoMode((current) => current || Boolean(data.demoMode));
       go("story");
@@ -252,6 +304,8 @@ export function StoryStudio() {
     setImageName("");
     setPrivacyChecked(false);
     setAnalysis(null);
+    setOpening(null);
+    setChoosing(false);
     setStory(null);
     setPageIndex(0);
     setFinished(false);
@@ -355,7 +409,7 @@ export function StoryStudio() {
       ) : null}
 
       <section className="studio-card">
-        {stage !== "upload" && stage !== "offline" && backTarget[stage] ? (
+        {stage !== "upload" && stage !== "offline" && !choosing && backTarget[stage] ? (
           <button className="back-button" type="button" onClick={() => go(backTarget[stage] as WizardStage)}>
             ← 이전
           </button>
@@ -446,7 +500,7 @@ export function StoryStudio() {
             </div>
             <button className="primary-button" type="button" onClick={generateStory} disabled={busy}>
               {busy
-                ? "4페이지 이야기를 만드는 중이에요…"
+                ? "이야기의 시작을 만드는 중이에요…"
                 : continuing
                   ? `${chapterNumber}편 이어서 만들기 →`
                   : "내 그림 이야기 만들기 →"}
@@ -454,11 +508,27 @@ export function StoryStudio() {
           </div>
         ) : null}
 
-        {stage === "story" && story && currentPage ? (
+        {stage === "story" && opening && choosing ? (
+          <>
+            <button className="back-button" type="button" onClick={() => setChoosing(false)} disabled={busy}>
+              ← 이야기 다시 보기
+            </button>
+            <ChoicePicker
+              opening={opening}
+              language={language}
+              nickname={nickname}
+              busy={busy}
+              speak={speak}
+              onChoose={chooseNext}
+            />
+          </>
+        ) : null}
+
+        {stage === "story" && storyTitle && currentPage && !choosing ? (
           <div className="story-stage">
             <div className="story-topline">
-              <div><p className="eyebrow">{chapterNumber > 1 ? `${chapterNumber}편 · 이어지는 이야기` : "내 그림이 살아나는 이야기"}</p><h2>{language === "en" ? story.titleEn : story.titleKo}</h2></div>
-              <strong>{pageIndex + 1} / {story.pages.length}</strong>
+              <div><p className="eyebrow">{chapterNumber > 1 ? `${chapterNumber}편 · 이어지는 이야기` : "내 그림이 살아나는 이야기"}</p><h2>{language === "en" ? storyTitle.titleEn : storyTitle.titleKo}</h2></div>
+              <strong>{pageIndex + 1} / {STORY_PAGES}</strong>
             </div>
             <div className="story-body">
             <div className="story-image">
@@ -471,6 +541,9 @@ export function StoryStudio() {
                 style={{ objectFit: "cover", objectPosition: `${currentPage.focus.x}% ${currentPage.focus.y}%` }}
               />
               <span className="original-badge">원본 그림 그대로</span>
+              {story?.choice && pageIndex === OPENING_PAGES ? (
+                <span className="choice-badge">{story.choice.byVoice ? "🎤" : "👆"} {nickname}의 선택 · {story.choice.ko}</span>
+              ) : null}
             </div>
             <div className="story-copy">
               {language !== "en" ? <p className="korean-line">{currentPage.ko}</p> : null}
@@ -486,8 +559,10 @@ export function StoryStudio() {
             </div>
             <div className="story-nav">
               <button type="button" disabled={pageIndex === 0} onClick={() => setPageIndex((index) => Math.max(0, index - 1))}>← 이전 장</button>
-              {pageIndex < story.pages.length - 1 ? (
-                <button className="primary-inline" type="button" onClick={() => setPageIndex((index) => Math.min(story.pages.length - 1, index + 1))}>다음 장 →</button>
+              {pageIndex < storyPages.length - 1 ? (
+                <button className="primary-inline" type="button" onClick={() => setPageIndex((index) => Math.min(storyPages.length - 1, index + 1))}>다음 장 →</button>
+              ) : !story ? (
+                <button className="primary-inline" type="button" onClick={startChoosing}>다음은 {nickname}의 차례 →</button>
               ) : (
                 <button className="primary-inline" type="button" onClick={finishChapter} disabled={busy}>
                   {busy ? "책에 담는 중…" : "책에 담고 다음으로 →"}

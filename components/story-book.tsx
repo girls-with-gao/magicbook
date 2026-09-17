@@ -137,6 +137,22 @@ export function StoryBookView({
               </ol>
             </dd>
           </div>
+          {book.chapters.some((chapter) => chapter.story.choice) ? (
+            <div>
+              <dt>{book.nickname}이(가) 정한 장면</dt>
+              <dd>
+                <ul className="choice-list">
+                  {book.chapters.map((chapter, chapterIndex) =>
+                    chapter.story.choice ? (
+                      <li key={chapterIndex}>
+                        {chapterIndex + 1}편 · {chapter.story.choice.byVoice ? "🎤 말로" : "👆 골라서"} “{chapter.story.choice.ko}”
+                      </li>
+                    ) : null
+                  )}
+                </ul>
+              </dd>
+            </div>
+          ) : null}
           <div><dt>새로 만난 영어 단어</dt><dd>{words.map((word) => word.en).join(", ")}</dd></div>
           <div><dt>함께 나눌 질문</dt><dd>{last?.story.offlinePromptKo}</dd></div>
         </dl>

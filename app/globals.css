@@ -1025,6 +1025,189 @@ footer {
   padding-left: 20px;
 }
 
+/* ---------- 갈림길 카드 · 음성 보조 ---------- */
+
+.choice-panel {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 40px);
+}
+
+.listen-question {
+  margin-top: 12px;
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid #d8e2ee;
+  border-radius: 999px;
+  background: #f5f9ff;
+  color: #2f67ad;
+  font-weight: 800;
+}
+
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.choice-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  min-height: 150px;
+  padding: 16px 12px;
+  border: 3px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+  color: var(--ink);
+  text-align: center;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+button.choice-card:active {
+  transform: scale(0.97);
+}
+
+.choice-card.selected {
+  border-color: var(--coral);
+  background: #fff3ed;
+  box-shadow: 0 0 0 4px rgba(244, 127, 92, 0.18);
+}
+
+.choice-emoji {
+  font-size: 46px;
+  line-height: 1.1;
+}
+
+.choice-card b {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.choice-card small {
+  color: #2f67ad;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.own-card {
+  border-style: dashed;
+  background: #fffaf3;
+}
+
+.own-card .text-button {
+  margin: 2px auto 0;
+  font-size: 12px;
+}
+
+.voice-button {
+  min-height: 48px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 4px 0 var(--coral-dark);
+}
+
+.voice-button.listening {
+  background: var(--green);
+  box-shadow: 0 4px 0 var(--green-dark);
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.voice-error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: #fff0ec;
+  color: #a03e2d;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.own-typing {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.voice-confirm {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  margin-bottom: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--green-soft);
+  text-align: center;
+}
+
+.voice-confirm p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.voice-confirm small {
+  color: var(--green-dark);
+  font-weight: 800;
+}
+
+.voice-confirm b {
+  font-size: 22px;
+}
+
+.voice-confirm > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-confirm .text-button {
+  margin: 0;
+}
+
+.choice-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 3px 0 var(--coral-dark);
+}
+
+.choice-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (min-width: 900px) {
+  .choice-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media print {
   body {
     background: #fff;
@@ -1127,5 +1310,6 @@ footer {
   *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+    animation: none !important;
   }
 }

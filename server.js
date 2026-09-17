@@ -290,56 +290,34 @@ async function generateStory(payload) {
 async function generatePageImages(payload, story) {
   const pages = story.pages || [];
   const results = [];
+  const characterReference = await generateCharacterReference(payload);
 
   for (let index = 0; index < pages.length; index += 1) {
-    const image = await generatePageImage(payload, story, pages[index], index);
+    const image = await generatePageImage(payload, story, pages[index], index, characterReference);
     results.push(image);
   }
 
   return results;
 }
 
-async function generatePageImage(payload, story, page, index) {
+async function generateCharacterReference(payload) {
   const apiKey = process.env.OPENAI_API_KEY;
-  const prompt = buildImagePrompt(payload, story, page, index);
   const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
   const primaryTool = buildImageTool(imageModel);
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: prompt },
-            { type: "input_image", image_url: payload.imageDataUrl }
-          ]
-        }
-      ],
-      tools: [primaryTool]
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    if (primaryTool.input_fidelity) {
-      return generatePageImageWithTool(apiKey, prompt, payload.imageDataUrl, buildImageTool("gpt-image-1-mini"));
-    }
-    throw new Error(`image generation failed: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const base64 = findGeneratedImage(data);
-  if (!base64) throw new Error("image generation response did not include an image");
-  return `data:image/png;base64,${base64}`;
+  const prompt = buildCharacterReferencePrompt(payload);
+  const images = await runImageGeneration(apiKey, prompt, [payload.imageDataUrl], primaryTool);
+  return images;
 }
 
-async function generatePageImageWithTool(apiKey, prompt, imageDataUrl, tool) {
+async function generatePageImage(payload, story, page, index, characterReference) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const prompt = buildImagePrompt(payload, story, page, index, Boolean(characterReference));
+  const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const primaryTool = buildImageTool(imageModel);
+  return runImageGeneration(apiKey, prompt, [payload.imageDataUrl, characterReference].filter(Boolean), primaryTool);
+}
+
+async function runImageGeneration(apiKey, prompt, imageUrls, tool) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -353,7 +331,7 @@ async function generatePageImageWithTool(apiKey, prompt, imageDataUrl, tool) {
           role: "user",
           content: [
             { type: "input_text", text: prompt },
-            { type: "input_image", image_url: imageDataUrl }
+            ...imageUrls.map((imageUrl) => ({ type: "input_image", image_url: imageUrl }))
           ]
         }
       ],
@@ -363,6 +341,9 @@ async function generatePageImageWithTool(apiKey, prompt, imageDataUrl, tool) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    if (tool.input_fidelity) {
+      return runImageGeneration(apiKey, prompt, imageUrls, buildImageTool("gpt-image-1-mini"));
+    }
     throw new Error(`image generation failed: ${response.status} ${errorText}`);
   }
 
@@ -388,16 +369,40 @@ function buildImageTool(model) {
   return tool;
 }
 
-function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index) {
+function buildCharacterReferencePrompt({ childName, characterIdentity, characterName, characterDetails }) {
+  const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
+  return `
+Create a single clean character reference illustration for a children's picture book.
+
+Use the uploaded child drawing as the only source of truth.
+Character: ${hero}
+Child: ${childName || "아이"}
+Character details: ${characterDetails || "preserve the uploaded drawing's visible features"}
+
+Rules:
+- Preserve the uploaded drawing's exact main colors, silhouette, horn/eye/leg placement, face shape, proportions, and quirky childlike imperfections.
+- Do not turn it into a generic realistic dinosaur, animal, princess, robot, or polished mascot.
+- Clean it up gently for a printed picture-book style, but it must still look like the same child-created character.
+- Neutral simple background, full body visible, no text, no labels, no logo.
+- This image will be reused as the locked character reference for every story page, so keep colors stable and distinctive.
+`;
+}
+
+function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index, hasCharacterReference) {
   const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
   return `
 Create one Korean children's picture-book illustration page.
 
-Reference image: the uploaded child drawing. Use it as the core character design.
+Reference images:
+1. The original uploaded child drawing.
+${hasCharacterReference ? "2. A locked character reference derived from the child drawing. Use this second image as the exact character model for all pages." : ""}
+
+Use the child drawing as the core character design.
 The character may be cleaned up into a soft picture-book illustration, but visual fidelity to the child drawing is more important than anatomical correctness.
 Preserve the child's original drawing's identity, silhouette, colors, proportions, face placement, number and placement of horns/eyes/legs, and quirky childlike shape.
 Do not replace it with a generic polished dinosaur or realistic museum dinosaur. If it looks like a dog but the child says it is a triceratops, draw a triceratops that still looks like the child's drawing.
 Keep the main character simple, child-drawn, rounded, imperfect, and recognizable as the uploaded drawing.
+Across pages, the character must stay the same character: same body color, same horn color, same face shape, same eye style, same proportions, same markings. Only facial expression, pose, and camera angle may change.
 
 Child: ${childName || "아이"}
 Character: ${hero}
@@ -410,6 +415,7 @@ Page ${index + 1} Korean text: ${page.ko}
 Visual direction:
 - Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
 - One full-page illustration with the character acting in the scene.
+- Keep the protagonist's color palette identical to the reference. Do not make it lighter, darker, a different species, or a different character.
 - Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
 - Leave the picture itself clean; Korean story text will be rendered separately by the app.
 - Safe, cozy, age-appropriate, no scary or violent elements.

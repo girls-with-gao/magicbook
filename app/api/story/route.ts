@@ -1,5 +1,6 @@
 import { buildStoryPrompt } from "@/lib/ai-prompts";
 import { createDemoStory } from "@/lib/demo-data";
+import { findTheme } from "@/lib/themes";
 import { hasOpenAIKey, requestOpenAIJson } from "@/lib/openai";
 import type { BilingualStory, DrawingAnalysis, StoryPage } from "@/lib/story-types";
 
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       nickname?: unknown;
       age?: unknown;
       analysis?: unknown;
+      themeId?: unknown;
     };
     if (!validAnalysis(body.analysis)) {
       return Response.json(
@@ -77,19 +79,21 @@ export async function POST(request: Request) {
 
     const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
     const age = Math.min(12, Math.max(5, Number(body.age) || 7));
+    // 목록에 없는 값이 들어오면 findTheme이 안전한 기본 테마로 되돌려줘요.
+    const theme = findTheme(body.themeId);
 
     if (!hasOpenAIKey()) {
       return Response.json(
-        { story: createDemoStory({ nickname, age }), demoMode: true },
+        { story: createDemoStory({ nickname, age }), themeId: theme.id, demoMode: true },
         { headers: noStoreHeaders }
       );
     }
 
     const generated = await requestOpenAIJson<Partial<BilingualStory>>({
-      prompt: buildStoryPrompt({ nickname, age, analysis: body.analysis })
+      prompt: buildStoryPrompt({ nickname, age, analysis: body.analysis, themeId: theme.id })
     });
     return Response.json(
-      { story: normalizeStory(generated, nickname, age), demoMode: false },
+      { story: normalizeStory(generated, nickname, age), themeId: theme.id, demoMode: false },
       { headers: noStoreHeaders }
     );
   } catch (error) {

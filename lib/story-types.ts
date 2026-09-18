@@ -1,3 +1,5 @@
+import type { StoryThemeId } from "./themes";
+
 export type LanguageMode = "ko" | "en" | "both";
 
 export type DrawingAnalysis = {
@@ -32,4 +34,5 @@ export type StoryRequest = {
   nickname: string;
   age: number;
   analysis: DrawingAnalysis;
+  themeId?: StoryThemeId;
 };

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import type { BilingualStory, DrawingAnalysis, LanguageMode } from "@/lib/story-types";
+import { defaultThemeId, findTheme, storyThemes, type StoryThemeId } from "@/lib/themes";
 import { transitionStage, type WizardStage } from "@/lib/wizard";
 
 const stageOrder: WizardStage[] = ["upload", "review", "language", "story", "offline"];
@@ -61,6 +62,7 @@ export function StoryStudio() {
   const [privacyChecked, setPrivacyChecked] = useState(false);
   const [analysis, setAnalysis] = useState<DrawingAnalysis | null>(null);
   const [language, setLanguage] = useState<LanguageMode>("both");
+  const [themeId, setThemeId] = useState<StoryThemeId>(defaultThemeId);
   const [story, setStory] = useState<BilingualStory | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -144,7 +146,7 @@ export function StoryStudio() {
       const response = await fetch("/api/story", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ analysis, nickname: nickname.trim(), age })
+        body: JSON.stringify({ analysis, nickname: nickname.trim(), age, themeId })
       });
       const data = (await response.json()) as {
         story?: BilingualStory;
@@ -197,6 +199,26 @@ export function StoryStudio() {
           {progressLabel}
         </div>
       </header>
+
+      {stage === "upload" ? (
+        <section className="hero" aria-labelledby="hero-title">
+          <div className="hero-copy">
+            <p className="hero-eyebrow">아이 그림 × AI 동화</p>
+            <h2 id="hero-title">아이 그림이<br />동화가 되는 순간</h2>
+            <p className="hero-lead">
+              그림이나 그림일기를 올리면 AI가 아이의 상상을 짧은 동화와 쉬운 영어 이야기로 열어줘요.
+            </p>
+          </div>
+          <div className="hero-preview" aria-hidden="true">
+            <div className="paper paper-one" />
+            <div className="paper paper-two" />
+            <div className="paper paper-three">
+              <span />
+              <strong>Magic</strong>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <nav className="stepper" aria-label="이야기 만들기 진행 단계">
         {stageOrder.map((item, index) => (
@@ -293,6 +315,25 @@ export function StoryStudio() {
               <button className={language === "en" ? "selected" : ""} type="button" onClick={() => setLanguage("en")}><span>🇺🇸</span><b>Read in English</b><small>Easy English story and words</small></button>
               <button className={language === "both" ? "selected" : ""} type="button" onClick={() => setLanguage("both")}><span>🌈</span><b>한국어 + English</b><small>같은 이야기를 두 언어로</small></button>
             </div>
+
+            <fieldset className="theme-picker">
+              <legend>어떤 이야기로 만들까요?</legend>
+              <div className="theme-chips">
+                {storyThemes.map((theme) => (
+                  <button
+                    key={theme.id}
+                    className={`theme-chip ${themeId === theme.id ? "selected" : ""}`}
+                    type="button"
+                    aria-pressed={themeId === theme.id}
+                    onClick={() => setThemeId(theme.id)}
+                  >
+                    {theme.label}
+                  </button>
+                ))}
+              </div>
+              <p className="helper-copy">아이가 그린 내용은 그대로 두고, 분위기만 바뀌어요.</p>
+            </fieldset>
+
             <button className="primary-button" type="button" onClick={generateStory} disabled={busy}>
               {busy ? "4페이지 이야기를 만드는 중이에요…" : "내 그림 이야기 만들기 →"}
             </button>
@@ -302,7 +343,11 @@ export function StoryStudio() {
         {stage === "story" && story && currentPage ? (
           <div className="story-stage">
             <div className="story-topline">
-              <div><p className="eyebrow">내 그림이 살아나는 이야기</p><h2>{language === "en" ? story.titleEn : story.titleKo}</h2></div>
+              <div>
+                <p className="eyebrow">내 그림이 살아나는 이야기</p>
+                <h2>{language === "en" ? story.titleEn : story.titleKo}</h2>
+                <p className="story-theme">테마 · {findTheme(themeId).label}</p>
+              </div>
               <strong>{pageIndex + 1} / {story.pages.length}</strong>
             </div>
             <div className="story-image">
@@ -314,8 +359,8 @@ export function StoryStudio() {
                 unoptimized
                 style={{ objectFit: "cover", objectPosition: `${currentPage.focus.x}% ${currentPage.focus.y}%` }}
               />
-              <span className="original-badge">원본 그림 그대로</span>
             </div>
+            <p className="original-badge">원본 그림 그대로예요</p>
             <div className="story-copy">
               {language !== "en" ? <p className="korean-line">{currentPage.ko}</p> : null}
               {language !== "ko" ? <p className="english-line">{currentPage.en}</p> : null}

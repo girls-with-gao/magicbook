@@ -1,3 +1,5 @@
+import { findTheme } from "./themes";
+
 import type { StoryRequest } from "./story-types";
 
 export function buildAnalysisPrompt({ nickname, age }: { nickname: string; age: number }) {
@@ -19,14 +21,20 @@ Use Korean. For unclear handwriting, write only the readable portion without inv
 `.trim();
 }
 
-export function buildStoryPrompt({ nickname, age, analysis }: StoryRequest) {
+export function buildStoryPrompt({ nickname, age, analysis, themeId }: StoryRequest) {
+  const theme = findTheme(themeId);
+
   return `
 You create a safe, warm story for a ${age}-year-old child using the nickname "${nickname}".
 Use only this parent-confirmed drawing diary analysis:
 ${JSON.stringify(analysis)}
 
+Story theme the child chose: ${theme.label}
+Theme guidance: ${theme.hint}
+
 Requirements:
 - Return exactly 4 pages.
+- Let the theme colour the mood and setting, but never replace what the child actually drew.
 - Every page must contain matching Korean and English sentences.
 - Use age-appropriate, short language that can be read in about 3 minutes total.
 - Each page may contain at most 2 vocabulary words, paired as Korean and English.

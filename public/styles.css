@@ -325,11 +325,8 @@ h2 {
   --scene-b: #fff7dc;
   --ground: #93c572;
   --prop: #c7834b;
-  display: grid;
-  grid-template-columns: minmax(270px, 1fr) minmax(260px, 0.9fr);
-  gap: clamp(18px, 3vw, 32px);
-  align-items: stretch;
-  min-height: 430px;
+  display: block;
+  min-height: 560px;
   padding: clamp(16px, 3vw, 30px);
   border: 2px solid #1f2937;
   border-radius: 8px;
@@ -367,12 +364,52 @@ h2 {
 
 .storybook-scene {
   position: relative;
+  min-height: 520px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 8px;
   background:
     linear-gradient(180deg, var(--scene-a) 0 63%, var(--ground) 64% 100%);
   box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+}
+
+.storybook-scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.14;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.34) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 64%, rgba(45, 54, 50, 0.16) 0 1px, transparent 1.5px);
+  background-size: 17px 19px, 23px 25px;
+  mix-blend-mode: multiply;
+}
+
+.has-generated-art .storybook-scene {
+  background: #fff;
+}
+
+#generated-page-art {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.has-generated-art #generated-page-art {
+  display: block;
+}
+
+.has-generated-art .scene-sun,
+.has-generated-art .scene-cloud,
+.has-generated-art .scene-prop,
+.has-generated-art .mood-badge {
+  display: none;
 }
 
 .scene-sun {
@@ -446,15 +483,48 @@ h2 {
 #page-art {
   display: block;
   position: absolute;
-  left: 50%;
-  bottom: 56px;
-  width: min(58%, 260px);
-  height: min(70%, 280px);
+  left: var(--character-left, 50%);
+  bottom: var(--character-bottom, 6%);
+  width: var(--character-width, 44%);
+  height: var(--character-height, 60%);
   object-fit: contain;
   filter: drop-shadow(0 12px 0 rgba(31, 41, 55, 0.1));
-  transform: translateX(-50%) rotate(var(--character-tilt, -2deg)) scale(var(--character-scale, 1));
+  transform: translateX(-50%) rotate(var(--character-tilt, -2deg));
   transform-origin: center bottom;
   z-index: 3;
+}
+
+#page-art[src=""] {
+  display: none;
+}
+
+.character-ground {
+  position: absolute;
+  left: var(--character-left, 50%);
+  bottom: calc(var(--character-bottom, 6%) - 1%);
+  width: min(var(--character-width, 44%), 34%);
+  height: 7%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(42, 57, 47, 0.32) 0 20%, rgba(42, 57, 47, 0.14) 48%, transparent 76%);
+  filter: blur(2px);
+  z-index: 2;
+}
+
+.scene-foreground {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 13%;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0%, rgba(56, 76, 54, 0.06) 36%, rgba(56, 76, 54, 0.2) 100%);
+}
+
+.has-generated-art .scene-foreground {
+  display: block;
 }
 
 .mood-badge {
@@ -475,29 +545,40 @@ h2 {
 }
 
 .page-copy {
+  position: absolute;
+  right: clamp(18px, 4vw, 46px);
+  bottom: clamp(18px, 4vw, 42px);
+  z-index: 6;
   display: grid;
-  align-content: center;
   gap: 12px;
-  border: 2px solid #1f2937;
-  border-radius: 8px;
-  padding: clamp(18px, 3vw, 30px);
-  background:
-    linear-gradient(90deg, rgba(31, 41, 55, 0.08) 0 1px, transparent 1px 100%),
-    var(--paper);
-  background-size: 24px 100%;
-  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+  width: min(38%, 410px);
+  max-height: calc(100% - 52px);
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  padding: clamp(14px, 2.2vw, 24px);
+  background: rgba(255, 250, 240, 0.84);
+  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.12);
+  backdrop-filter: blur(3px);
+}
+
+.text-left .page-copy {
+  right: auto;
+  left: clamp(18px, 4vw, 46px);
+}
+
+.text-right .page-copy {
+  right: clamp(18px, 4vw, 46px);
+  left: auto;
 }
 
 .character-line {
-  margin: 0;
-  color: var(--green-dark);
-  font-size: 14px;
-  font-weight: 900;
+  display: none;
 }
 
 .page-ko {
   margin: 0;
-  font-size: clamp(25px, 3.2vw, 44px);
+  font-size: clamp(25px, 3vw, 40px);
   line-height: 1.42;
   font-weight: 800;
 }
@@ -580,12 +661,26 @@ li {
 }
 
 @media (max-width: 760px) {
-  .book-page {
-    grid-template-columns: 1fr;
+  .storybook-scene {
+    min-height: 520px;
+    aspect-ratio: 4 / 5;
   }
 
-  .storybook-scene {
-    min-height: 300px;
+  .page-copy {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    max-height: 46%;
+  }
+
+  .page-ko {
+    font-size: 24px;
+  }
+
+  #page-art {
+    width: min(var(--character-width, 44%), 58%);
+    height: min(var(--character-height, 60%), 54%);
   }
 }
 

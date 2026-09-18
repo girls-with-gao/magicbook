@@ -66,23 +66,31 @@ function fallbackStory({ childName, age, theme, mode, diaryText, characterIdenti
     pages: [
       {
         ko: `${name}${subject} 그린 ${object} '${heroName}'${josa(heroName, "이", "가")} 그림 속에서 반짝 눈을 떴어요. ${details}${josa(details, "은", "는")} 그대로였죠.`,
-        en: `The ${englishObject} opened its eyes inside the drawing. The child remembered the amazing day at the ${englishPlace}.`
+        en: `The ${englishObject} opened its eyes inside the drawing. The child remembered the amazing day at the ${englishPlace}.`,
+        framing: "close",
+        textSide: "right"
       },
       {
-        ko: `'${heroName}'${josa(heroName, "은", "는")} 색연필 길을 천천히 걸으며 말했어요. "나를 이렇게 멋지게 그려줘서 고마워!"`,
-        en: `The ${englishObject} walked along a crayon road and said, "Thank you for remembering me in such a wonderful way!"`
+        ko: `'${heroName}'${josa(heroName, "은", "는")} 전시실 안으로 천천히 걸어 들어갔어요. 커다란 뼈와 발자국이 눈앞에 펼쳐졌지요.`,
+        en: `The ${englishObject} walked into the exhibition hall. Huge bones and footprints appeared before the child.`,
+        framing: "wide",
+        textSide: "right"
       },
       {
-        ko: `${name}${topic} 그림 속 '${heroName}'${josa(heroName, "이", "가")} 움직이는 모습을 보며, ${place}에서 느꼈던 두근거림을 다시 떠올렸어요.`,
-        en: `The child looked at the ${englishObject}'s horns and strong feet, and remembered the excitement from the exhibition.`
+        ko: `${name}${topic} '${heroName}'${josa(heroName, "이", "가")} 전시실 바닥의 발자국을 따라가는 모습을 보며, ${place}에서 느꼈던 두근거림을 다시 떠올렸어요.`,
+        en: `The child watched the ${englishObject} follow footprints across the hall and remembered the excitement of the ${englishPlace}.`,
+        framing: "medium",
+        textSide: "left"
       },
       {
         ko: openEnded
-          ? `그때 그림 밖에서 쿵, 쿵, 작은 발소리가 들렸어요. '${heroName}'${josa(heroName, "은", "는")} 고개를 돌렸어요. 이제 다음 장면은 ${name}${subject} 상상할 차례예요.`
-          : `'${heroName}'${josa(heroName, "은", "는")} ${name}에게 작은 화석 모양 별을 선물했고, 그림 속 세상은 환한 모험으로 가득 찼어요.`,
+          ? `발자국은 아직 가 보지 않은 전시실 앞에서 멈췄어요. '${heroName}'${josa(heroName, "은", "는")} 고개를 들었지요. 다음에는 무엇이 기다리고 있을까요?`
+          : `'${heroName}'${josa(heroName, "은", "는")} 발자국의 끝에서 새로운 전시물을 발견했고, ${name}${subject} 그 모습을 오래도록 기억했어요.`,
         en: openEnded
-          ? `Then the child heard soft footsteps from inside the exhibition hall. Now it is time to imagine what happens next.`
-          : `The ${englishObject} gave the child a tiny fossil-shaped star, and the drawing exhibition became full of bright adventure.`
+          ? `The footprints stopped at an unexplored hall. What might be waiting there?`
+          : `At the end of the footprints, the ${englishObject} found a new exhibit that the child would remember for a long time.`,
+        framing: "wide",
+        textSide: "left"
       }
     ],
     prompts: [
@@ -105,7 +113,24 @@ function normalizeStory(story) {
     ...story,
     pages: pages.slice(0, 4).map((page) => ({
       ko: trimSentences(page.ko || "", 2),
-      en: trimSentences(page.en || "", 2)
+      en: trimSentences(page.en || "", 2),
+      framing: normalizeFraming(page.framing),
+      textSide: page.textSide === "left" ? "left" : "right"
+    }))
+  };
+}
+
+function normalizeFraming(framing) {
+  return ["close", "medium", "wide"].includes(framing) ? framing : "medium";
+}
+
+function normalizeStoryWithImages(story, images) {
+  const normalized = normalizeStory(story);
+  return {
+    ...normalized,
+    pages: normalized.pages.map((page, index) => ({
+      ...page,
+      imageDataUrl: images[index] || ""
     }))
   };
 }
@@ -113,7 +138,7 @@ function normalizeStory(story) {
 function trimSentences(text, maxSentences) {
   return text
     .replace(/\s+/g, " ")
-    .split(/(?<=[.!?。？！요다죠음함까])\s+/)
+    .split(/(?<=[.!?。？！])\s+/)
     .filter(Boolean)
     .slice(0, maxSentences)
     .join(" ");
@@ -197,6 +222,8 @@ Rules:
 - Write like a real picture book: scene by scene, with warm narration, simple action, and a page-turn feeling.
 - Write the story as if the extracted character from the uploaded drawing is acting inside illustrated backgrounds. The text should support the picture-book page, not explain the app.
 - The story must be grounded in the uploaded drawing and diary text. If the diary mentions a specific subject, place, or event, make that the center of the story.
+- Do not invent vague magical objects when the diary gives a concrete place or event. Prefer visible, drawable actions such as entering a museum, looking at a skeleton, following footprints, or meeting a friend.
+- Unless the child explicitly mentions them, do not use gems, crystals, mysterious lights, portals, secret doors, magic keys, or other vague fantasy objects. Use concrete, drawable details from the diary instead.
 - If the drawing and diary seem different, prioritize the diary text and explain the drawing as part of that memory.
 - Treat the uploaded child drawing as the heart of the book. Mention visible details from the drawing when possible, and make the child's drawing feel like the source of the story rather than a generic prompt.
 - Avoid violence, fear, commercial content, and addictive hooks.
@@ -207,12 +234,14 @@ Rules:
 - Page 2 starts a gentle event or discovery.
 - Page 3 shows action, emotion, or a small problem.
 - Page 4 resolves it or, for open-ended mode, pauses at a page-turn moment with a creative prompt.
+- For every page, choose one framing value: "close" for a character-focused view, "medium" for character plus action, or "wide" for a scene-focused view. Do not use the same framing for every page.
+- For every page, choose textSide as "left" or "right" and place the important visual action on the opposite side.
 - Return only valid JSON with this schema:
 {
   "title": "string",
   "summary": "string",
   "keywords": ["string"],
-  "pages": [{"ko": "string", "en": "string"}],
+  "pages": [{"ko": "string", "en": "string", "framing": "close|medium|wide", "textSide": "left|right"}],
   "prompts": ["string"],
   "englishWords": [{"word": "string", "meaning": "string"}],
   "note": "string"
@@ -262,7 +291,170 @@ async function generateStory(payload) {
     data.output?.flatMap((item) => item.content || []).find((item) => item.text)?.text;
 
   if (!text) throw new Error("OpenAI response did not include text output.");
-  return normalizeStory(JSON.parse(text));
+  const story = normalizeStory(parseStoryJson(text));
+  if (!payload.imageDataUrl) return story;
+
+  try {
+    const images = await generatePageImages(payload, story);
+    return normalizeStoryWithImages(story, images);
+  } catch (error) {
+    return {
+      ...story,
+      note: `${story.note || ""} 삽화 생성 중 문제가 있어 임시 장면으로 표시합니다: ${error.message}`.trim()
+    };
+  }
+}
+
+function parseStoryJson(text) {
+  const cleaned = String(text)
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      } catch {
+        // Fall through with the original response for a useful error message.
+      }
+    }
+    throw new Error("동화 응답을 JSON으로 읽지 못했어요. 다시 시도해 주세요.");
+  }
+}
+
+async function generatePageImages(payload, story) {
+  const pages = story.pages || [];
+  const results = [];
+
+  for (let index = 0; index < pages.length; index += 1) {
+    const image = await generatePageImage(payload, story, pages[index], index);
+    results.push(image);
+  }
+
+  return results;
+}
+
+async function generatePageImage(payload, story, page, index) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const prompt = buildImagePrompt(payload, story, page, index);
+  const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+  const primaryTool = buildImageTool(imageModel, false);
+  return runImageGeneration(apiKey, prompt, [], primaryTool);
+}
+
+async function runImageGeneration(apiKey, prompt, imageUrls, tool) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: prompt },
+            ...imageUrls.map((imageUrl) => ({ type: "input_image", image_url: imageUrl }))
+          ]
+        }
+      ],
+      tools: [tool]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    if (tool.input_fidelity) {
+      return runImageGeneration(apiKey, prompt, imageUrls, buildImageTool("gpt-image-1-mini"));
+    }
+    throw new Error(`image generation failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const base64 = findGeneratedImage(data);
+  if (!base64) throw new Error("image generation response did not include an image");
+  return `data:image/png;base64,${base64}`;
+}
+
+function buildImageTool(model, useInputFidelity = true) {
+  const tool = {
+    type: "image_generation",
+    model,
+    quality: "low",
+    size: "1024x1024",
+    output_format: "png"
+  };
+
+  if (model === "gpt-image-1" && useInputFidelity) {
+    tool.input_fidelity = "high";
+  }
+
+  return tool;
+}
+
+function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index) {
+  const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
+  const framing = normalizeFraming(page.framing);
+  const framingDirection = {
+    close: "Use a character-focused composition with room around the character for a storybook text panel.",
+    medium: "Use a medium composition that shows the character and the main action around it.",
+    wide: "Use a wide establishing composition where the location and atmosphere are clearly visible; do not fill the frame with a character."
+  }[framing];
+  return `
+Create a background-only illustration for one page of a Korean children's picture book.
+
+The app will place the child's original drawing on top of this background later. Do not draw, recreate, imply, duplicate, silhouette, or include any main character, animal, person, mascot, or creature in the background.
+Do not include a character-shaped empty outline or a second version of the protagonist.
+
+Child: ${childName || "아이"}
+Character: ${hero}
+Character details: ${characterDetails || "preserve the uploaded drawing's visible features"}
+Theme: ${theme || "warm adventure"}
+Diary context: ${diaryText || "none"}
+Story title: ${story.title || "MagicBook"}
+Page ${index + 1} Korean text: ${page.ko}
+
+Page ${index + 1} composition:
+- Framing: ${framing}
+- ${framingDirection}
+- Leave a calm, low-detail area on the ${page.textSide === "left" ? "left" : "right"} side for Korean story text.
+- Keep the main action area on the opposite side from the text area.
+
+Visual direction:
+- Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
+- Use concrete visual details from the diary and story page, such as a museum hall, dinosaur skeleton, display case, footprints, trees, castle rooms, or ocean waves.
+- Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
+- The app will place the original child drawing and Korean text over this background, so keep the requested text area visually simple.
+- Safe, cozy, age-appropriate, no scary or violent elements.
+`;
+}
+
+function findGeneratedImage(value) {
+  if (!value || typeof value !== "object") return "";
+  if (typeof value.result === "string") return value.result;
+  if (typeof value.b64_json === "string") return value.b64_json;
+  if (typeof value.image_base64 === "string") return value.image_base64;
+
+  for (const item of Object.values(value)) {
+    if (Array.isArray(item)) {
+      for (const child of item) {
+        const found = findGeneratedImage(child);
+        if (found) return found;
+      }
+    } else if (item && typeof item === "object") {
+      const found = findGeneratedImage(item);
+      if (found) return found;
+    }
+  }
+
+  return "";
 }
 
 async function serveStatic(req, res) {

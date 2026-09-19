@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractJsonObject } from "../lib/openai";
+import { extractJsonObject } from "../public/shared/openai.js";
 
 describe("extractJsonObject", () => {
   it("일반 JSON 객체를 읽는다", () => {

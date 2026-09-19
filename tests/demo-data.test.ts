@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDemoStory, demoAnalysisFor, demoSampleImagePath } from "../lib/demo-data";
+import { createDemoStory, demoAnalysisFor, demoSampleImagePath } from "../public/shared/demo-data.js";
 
 describe("createDemoStory", () => {
   const story = createDemoStory({ nickname: "수민", age: 7 });

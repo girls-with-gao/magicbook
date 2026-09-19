@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildAnalysisPrompt, buildEndingPrompt, buildOpeningPrompt } from "../lib/ai-prompts";
-import { createDemoOpening, demoAnalysis } from "../lib/demo-data";
+import { buildAnalysisPrompt, buildEndingPrompt, buildOpeningPrompt } from "../public/shared/ai-prompts.js";
+import { createDemoOpening, demoAnalysis } from "../public/shared/demo-data.js";
 
 const base = { nickname: "수민", age: 7, analysis: demoAnalysis };
 

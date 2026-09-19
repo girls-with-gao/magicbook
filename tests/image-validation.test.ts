@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_IMAGE_BYTES, validateImageDataUrl } from "../lib/image-validation";
+import { MAX_IMAGE_BYTES, validateImageDataUrl } from "../public/shared/image-validation.js";
 
 describe("validateImageDataUrl", () => {
   it.each(["jpeg", "png", "webp"])("%s 이미지를 허용한다", (type) => {

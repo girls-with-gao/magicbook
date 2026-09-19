@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transitionStage, type WizardStage } from "../lib/wizard";
+import { transitionStage, type WizardStage } from "../public/shared/wizard.js";
 
 describe("transitionStage", () => {
   it.each<[WizardStage, WizardStage]>([

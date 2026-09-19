@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createDemoEnding, createDemoOpening, createDemoStory } from "../lib/demo-data";
+import { createDemoEnding, createDemoOpening, createDemoStory } from "../public/shared/demo-data.js";
 import {
   combineStory,
   normalizeEnding,
   normalizeOpening,
   parseChildChoice,
   parseOpening
-} from "../lib/story-normalize";
+} from "../public/shared/story-normalize.js";
 
 const meta = { nickname: "수민", age: 7, chapter: 1 };
 

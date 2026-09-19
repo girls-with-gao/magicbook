@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { appendChapter, BOOK_STORAGE_KEY, clearBook, isBookFull, loadBook, saveBook } from "../lib/book-storage";
-import { createDemoStory, demoAnalysis } from "../lib/demo-data";
-import { parsePreviousChapters } from "../lib/previous-chapters";
-import type { StoryChapter } from "../lib/story-types";
+import { appendChapter, BOOK_STORAGE_KEY, clearBook, isBookFull, loadBook, saveBook } from "../public/shared/book-storage.js";
+import { createDemoStory, demoAnalysis } from "../public/shared/demo-data.js";
+import { parsePreviousChapters } from "../public/shared/previous-chapters.js";
+import type { StoryChapter } from "../public/shared/story-types.js";
 
 function memoryStorage() {
   const data = new Map<string, string>();

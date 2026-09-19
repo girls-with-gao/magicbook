@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { findSeedBook, seedBooks } from "../lib/seed-books";
-import { MAX_CHAPTERS } from "../lib/story-types";
+import { findSeedBook, seedBooks } from "../public/shared/seed-books.js";
+import { MAX_CHAPTERS } from "../public/shared/story-types.js";
 
 describe("친구 이야기 예시", () => {
   it("세 편이 서로 다른 아이디와 지은이를 가진다", () => {

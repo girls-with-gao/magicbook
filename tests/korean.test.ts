@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withParticle } from "../lib/korean";
+import { withParticle } from "../public/shared/korean.js";
 
 describe("withParticle", () => {
   it("받침이 있으면 앞 조사를, 없으면 뒤 조사를 붙인다", () => {

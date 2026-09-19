@@ -601,13 +601,15 @@ function reviewHtml() {
           : ""
       }
       <div class="review-grid">
-        <label><span>등장인물</span><input id="field-characters" value="${escapeHtml(a.characters.join(", "))}" /></label>
-        <label><span>장소</span><input id="field-place" value="${escapeHtml(a.place)}" /></label>
-        <label><span>사물</span><input id="field-objects" value="${escapeHtml(a.objects.join(", "))}" /></label>
-        <label><span>분위기</span><input id="field-mood" value="${escapeHtml(a.mood)}" /></label>
-        <label class="wide-field"><span>그림일기 글</span><textarea id="field-diary" rows="4">${escapeHtml(a.diaryText)}</textarea></label>
+        <label><span>등장인물</span><input id="field-characters" value="${escapeHtml(a.characters.join(", "))}" placeholder="예: 공룡, 수민이" /></label>
+        <label><span>장소</span><input id="field-place" value="${escapeHtml(a.place)}" placeholder="예: 숲속" /></label>
+        <label><span>사물</span><input id="field-objects" value="${escapeHtml(a.objects.join(", "))}" placeholder="예: 꽃, 나비" /></label>
+        <label><span>분위기</span><input id="field-mood" value="${escapeHtml(a.mood)}" placeholder="예: 신나는 기분" /></label>
+        <label class="wide-field"><span>그림일기 글 <small>(없으면 비워 두세요)</small></span><textarea id="field-diary" rows="4" placeholder="그림에 쓴 글이 있으면 여기에 보여요. 없으면 비워 두어도 괜찮아요.">${escapeHtml(a.diaryText)}</textarea></label>
       </div>
-      <p class="helper-copy">손글씨를 잘못 읽은 부분만 편하게 고쳐주세요.</p>
+      <p class="helper-copy">${
+        a.diaryText.trim() ? "손글씨를 잘못 읽은 부분만 편하게 고쳐주세요." : "글씨를 못 읽었어요. 아이에게 그림 이야기를 물어보고 한 줄만 적어주셔도 좋아요."
+      }</p>
       <button class="primary-button" type="button" data-action="to-language">맞아요, 다음 →</button>
     </div>
   `;

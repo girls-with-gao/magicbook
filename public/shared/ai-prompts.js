@@ -19,6 +19,8 @@ Return only a JSON object with these exact fields:
 }
 
 Use Korean. For unclear handwriting, write only the readable portion without inventing details.
+If there is no handwriting at all, return "" for diaryText. Never invent a diary sentence.
+Describe what is actually drawn. Do not add objects, places, or moods that are not visible in the drawing.
 `.trim();
 }
 

@@ -474,17 +474,20 @@ function strings(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string").slice(0, 5) : [];
 }
 
+/**
+ * AI가 읽어 온 값을 정리한다.
+ * 비어 있을 때 예제 문장(바닷가·조개)으로 채우면 아이 그림과 상관없는 내용이 들어가므로,
+ * 읽지 못한 항목은 비워 두고 부모가 채우게 한다.
+ */
 function normalizeAnalysis(value) {
   const analysis = value && typeof value === "object" ? value : {};
+  const text = (input) => (typeof input === "string" ? input.trim() : "");
   return {
-    characters: strings(analysis.characters).length ? strings(analysis.characters) : demoAnalysis.characters,
-    place: typeof analysis.place === "string" && analysis.place.trim() ? analysis.place.trim() : demoAnalysis.place,
-    objects: strings(analysis.objects).length ? strings(analysis.objects) : demoAnalysis.objects,
-    mood: typeof analysis.mood === "string" && analysis.mood.trim() ? analysis.mood.trim() : demoAnalysis.mood,
-    diaryText:
-      typeof analysis.diaryText === "string" && analysis.diaryText.trim()
-        ? analysis.diaryText.trim()
-        : demoAnalysis.diaryText
+    characters: strings(analysis.characters),
+    place: text(analysis.place),
+    objects: strings(analysis.objects),
+    mood: text(analysis.mood),
+    diaryText: text(analysis.diaryText)
   };
 }
 

@@ -603,6 +603,8 @@ Page ${index + 1} composition:
 
 Visual direction:
 - Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
+- Keep colors soft and slightly desaturated so a child's bright crayon drawing placed on top stands out clearly.
+- Depth of field is welcome: keep the far background softer and the standing area crisper.
 - Use concrete visual details from the place, objects, and mood above.
 - Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
 - The app will place the original child drawing and Korean text over this background, so keep the requested text area visually simple.
@@ -638,6 +640,7 @@ async function handlePageArt(req, res) {
     sendJson(res, 200, { imageDataUrl, demoMode: false, framing, textSide });
   } catch (error) {
     // 삽화 생성 실패는 화면을 막지 않는다. 오려낸 주인공 그림만으로도 쪽을 볼 수 있어야 한다.
+    console.error("page art failed:", error);
     sendJson(res, 200, { imageDataUrl: "", demoMode: false, error: "삽화를 만들지 못했어요. 그림만 보여드릴게요." });
   }
 }

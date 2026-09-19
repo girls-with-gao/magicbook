@@ -371,11 +371,12 @@ h2 {
   min-height: 520px;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border: 2px solid #1f2937;
-  border-radius: 8px;
+  border: 1px solid rgba(41, 33, 28, 0.14);
+  border-radius: 18px;
+  /* 삽화가 오기 전에는 만화 같은 하늘 대신 차분한 종이 바탕을 쓴다 */
   background:
-    linear-gradient(180deg, var(--scene-a) 0 63%, var(--ground) 64% 100%);
-  box-shadow: 0 8px 0 rgba(31, 41, 55, 0.08);
+    radial-gradient(120% 90% at 50% 12%, #fffdf7 0%, #f7efe2 58%, #efe4d3 100%);
+  box-shadow: 0 14px 36px rgba(41, 33, 28, 0.12);
 }
 
 .storybook-scene::before {
@@ -409,10 +410,10 @@ h2 {
   display: block;
 }
 
-.has-generated-art .scene-sun,
-.has-generated-art .scene-cloud,
-.has-generated-art .scene-prop,
-.has-generated-art .mood-badge {
+.scene-sun,
+.scene-cloud,
+.scene-prop,
+.mood-badge {
   display: none;
 }
 
@@ -492,7 +493,11 @@ h2 {
   width: var(--character-width, 44%);
   height: var(--character-height, 60%);
   object-fit: contain;
-  filter: drop-shadow(0 12px 0 rgba(31, 41, 55, 0.1));
+  /* 오려 붙인 종이 스티커처럼 보이게: 크림색 테두리 + 부드러운 그림자 */
+  filter:
+    drop-shadow(2px 0 0 #fffaf0) drop-shadow(-2px 0 0 #fffaf0)
+    drop-shadow(0 2px 0 #fffaf0) drop-shadow(0 -2px 0 #fffaf0)
+    drop-shadow(0 10px 14px rgba(41, 33, 28, 0.28));
   transform: translateX(-50%) rotate(var(--character-tilt, -2deg));
   transform-origin: center bottom;
   z-index: 3;
@@ -559,11 +564,29 @@ h2 {
   max-height: calc(100% - 52px);
   overflow: hidden;
   border: 0;
-  border-radius: 4px;
-  padding: clamp(14px, 2.2vw, 24px);
-  background: rgba(255, 250, 240, 0.84);
-  box-shadow: 0 5px 18px rgba(31, 41, 55, 0.12);
-  backdrop-filter: blur(3px);
+  border-radius: 20px;
+  padding: clamp(18px, 2.6vw, 30px);
+  background: rgba(255, 252, 245, 0.9);
+  box-shadow: 0 10px 30px rgba(41, 33, 28, 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.page-copy .korean-line {
+  margin: 0;
+  color: #2f2620;
+  font-size: clamp(17px, 1.9vw, 24px);
+  font-weight: 800;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+}
+
+.page-copy .english-line {
+  margin: 0;
+  color: #4a6ea8;
+  font-size: clamp(14px, 1.4vw, 18px);
+  font-weight: 600;
+  line-height: 1.65;
 }
 
 .text-left .page-copy {
@@ -1820,6 +1843,89 @@ button.choice-card:active {
 
   .step-dot small {
     display: none;
+  }
+}
+
+/* 장면 전체를 그린 그림은 오려내지 않고 액자에 넣어 보여 준다.
+   AI 배경은 뒤에서 흐리게 깔려 분위기만 만든다. */
+.art-mode-whole #generated-page-art {
+  filter: blur(14px) saturate(0.9) brightness(1.04);
+  transform: scale(1.08);
+}
+
+.art-mode-whole .storybook-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(255, 252, 245, 0.42);
+}
+
+.framed-drawing {
+  position: absolute;
+  top: 50%;
+  left: var(--drawing-left, 34%);
+  z-index: 3;
+  width: min(58%, 620px);
+  max-height: 84%;
+  padding: 2.2%;
+  border-radius: 10px;
+  background: #fffdf7;
+  object-fit: contain;
+  box-shadow: 0 18px 40px rgba(41, 33, 28, 0.26);
+  transform: translate(-50%, -50%) rotate(var(--character-tilt, -1deg));
+}
+
+.text-left .framed-drawing {
+  --drawing-left: 66%;
+}
+
+@media (max-width: 720px) {
+  .framed-drawing {
+    width: min(74%, 420px);
+    max-height: 62%;
+    top: 38%;
+  }
+}
+
+/* 삽화를 만드는 동안 보여 주는 안내. 그동안에도 아이 그림은 보인다 */
+.art-loading {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 9px 15px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #65564e;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(81, 61, 49, 0.14);
+}
+
+.art-spinner {
+  width: 15px;
+  height: 15px;
+  border: 3px solid #e7ddd0;
+  border-top-color: var(--coral, #f47f5c);
+  border-radius: 50%;
+  animation: art-spin 0.9s linear infinite;
+}
+
+@keyframes art-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-spinner {
+    animation: none;
   }
 }
 

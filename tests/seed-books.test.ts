@@ -15,7 +15,7 @@ describe("친구 이야기 예시", () => {
     expect(seed.chapters.length).toBeLessThan(MAX_CHAPTERS);
     expect(seed.hook.length).toBeGreaterThan(0);
     seed.chapters.forEach((chapter) => {
-      expect(chapter.imagePath).toMatch(/^\/seed-.*\.svg$/);
+      expect(chapter.imagePath).toMatch(/^\/seed-.*\.png$/);
       expect(chapter.story.pages).toHaveLength(4);
       expect(chapter.story.summaryKo.length).toBeGreaterThan(0);
       expect(chapter.analysis.characters.length).toBeGreaterThan(0);

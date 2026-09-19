@@ -58,6 +58,8 @@ const state = {
   finished: false,
   book: null,
   characterCutoutDataUrl: "",
+  // "cutout" = 주인공만 오려 배경에 얹기, "whole" = 그림 전체를 액자로 보여 주기
+  artMode: "whole",
   pageArt: {}, // pageIndex -> { imageDataUrl, framing, textSide }
   bookIndex: 0
 };
@@ -163,12 +165,16 @@ function shrinkImage(dataUrl, maxSide = 1280) {
   });
 }
 
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
+}
+
 // 팀원 코드 유지 + 개선: 흰 종이 배경을 지우고, 가장 큰 덩어리(주인공)만 오려낸다.
 // 그림일기의 손글씨처럼 따로 떨어진 작은 덩어리는 버린다.
 function extractCharacter(dataUrl) {
   return new Promise((resolve) => {
     if (!dataUrl) {
-      resolve("");
+      resolve({ dataUrl: "", mode: "whole" });
       return;
     }
     const image = new Image();
@@ -192,16 +198,36 @@ function extractCharacter(dataUrl) {
         const r = data[index];
         const g = data[index + 1];
         const b = data[index + 2];
-        const isPaper = r > 210 && g > 210 && b > 195 && Math.abs(r - g) < 30 && Math.abs(g - b) < 40;
-        if (isPaper || data[index + 3] <= 20) data[index + 3] = 0;
-        else ink[i] = 1;
+        // 종이일수록 투명하게, 크레용 자국일수록 진하게. 딱 잘라내지 않고 서서히 흐려지게 해서
+        // 가장자리에 검은 테두리가 남지 않도록 한다.
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        const colorfulness = Math.max(r, g, b) - Math.min(r, g, b);
+        const darkness = clamp01((238 - luminance) / 70);
+        const colored = clamp01((colorfulness - 12) / 40);
+        const strength = Math.max(darkness, colored);
+        const alpha = Math.round(Math.min(data[index + 3], 255) * clamp01(strength * 1.15));
+        data[index + 3] = alpha;
+        if (alpha > 90) ink[i] = 1;
       }
       ctx.putImageData(imageData, 0, 0);
 
       const box = largestInkBox(ink, width, height);
       if (!box) {
-        // 오려내기에 실패하면 원본 그림을 그대로 쓴다.
-        resolve(dataUrl);
+        // 오려내기에 실패하면 그림 전체를 액자로 보여 준다.
+        resolve({ dataUrl, mode: "whole" });
+        return;
+      }
+
+      // 그림이 화면 대부분을 차지하거나 사방에 닿으면 "장면 그림"으로 보고 오려내지 않는다.
+      const coverage = ((box.maxX - box.minX) * (box.maxY - box.minY)) / (width * height);
+      const edge = Math.round(Math.min(width, height) * 0.04);
+      const touched =
+        (box.minX <= edge ? 1 : 0) +
+        (box.minY <= edge ? 1 : 0) +
+        (box.maxX >= width - edge ? 1 : 0) +
+        (box.maxY >= height - edge ? 1 : 0);
+      if (coverage > 0.55 || touched >= 3) {
+        resolve({ dataUrl, mode: "whole" });
         return;
       }
 
@@ -214,9 +240,9 @@ function extractCharacter(dataUrl) {
       output.width = sw;
       output.height = sh;
       output.getContext("2d").drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-      resolve(output.toDataURL("image/png"));
+      resolve({ dataUrl: output.toDataURL("image/png"), mode: "cutout" });
     };
-    image.onerror = () => resolve(dataUrl);
+    image.onerror = () => resolve({ dataUrl, mode: "whole" });
     image.src = dataUrl;
   });
 }
@@ -315,6 +341,8 @@ async function ensurePageArt(index) {
   if (!page) return;
   const titleKo = state.story ? state.story.titleKo : state.opening.titleKo;
   state.pageArt[index] = { loading: true };
+  // 기다리는 동안 "그리는 중" 안내가 보이도록 먼저 한 번 그린다.
+  if (index === state.pageIndex) renderStoryImageOnly();
   try {
     const data = await apiPost("/api/page-art", {
       nickname: state.nickname.trim(),
@@ -644,11 +672,12 @@ function currentComposition(index) {
 function storybookSceneHtml(page, index) {
   const art = state.pageArt[index];
   const imageDataUrl = art && art.imageDataUrl ? art.imageDataUrl : "";
+  const drawing = Boolean(art && art.loading);
   const composition = currentComposition(index);
   const scene = sceneClasses[index % sceneClasses.length];
   const tilt = [-3, 2, -1, 3][index % 4];
   return `
-    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""}">
+    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""} art-mode-${state.artMode}">
       <div class="storybook-scene framing-${composition.framing} text-${composition.textSide}">
         ${imageDataUrl ? `<img id="generated-page-art" src="${imageDataUrl}" alt="생성된 동화책 삽화" />` : ""}
         <div class="scene-sky"></div>
@@ -659,11 +688,14 @@ function storybookSceneHtml(page, index) {
         <div class="scene-prop prop-two"></div>
         <div class="character-ground" aria-hidden="true"></div>
         ${
-          state.characterCutoutDataUrl
-            ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
-            : ""
+          state.artMode === "whole"
+            ? `<img class="framed-drawing" src="${state.imageDataUrl}" alt="아이가 그린 그림" style="--character-tilt:${tilt}deg;" />`
+            : state.characterCutoutDataUrl
+              ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
+              : ""
         }
         <div class="scene-foreground" aria-hidden="true"></div>
+        ${drawing ? `<p class="art-loading" role="status"><span class="art-spinner" aria-hidden="true"></span>배경을 그리는 중이에요…</p>` : ""}
         <div class="page-copy">
           ${state.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
           ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
@@ -1113,7 +1145,9 @@ async function generateStory() {
     state.demoMode = state.demoMode || Boolean(data.demoMode);
     state.busy = false;
     // 이야기가 시작되면 아이 그림에서 주인공을 오려 둔다.
-    state.characterCutoutDataUrl = await extractCharacter(state.imageDataUrl);
+    const cutout = await extractCharacter(state.imageDataUrl);
+    state.characterCutoutDataUrl = cutout.dataUrl;
+    state.artMode = cutout.mode;
     go("story");
   } catch (caught) {
     state.busy = false;
@@ -1183,6 +1217,7 @@ function resetDrawing() {
   state.pageIndex = 0;
   state.finished = false;
   state.characterCutoutDataUrl = "";
+  state.artMode = "whole";
   state.pageArt = {};
 }
 

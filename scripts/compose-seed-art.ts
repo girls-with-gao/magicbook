@@ -1,6 +1,7 @@
 /**
  * AI로 만든 그림(public/seed-art/*.png)에 한글 손글씨를 얹어
- * 그림일기 한 장(public/seed-*.svg)으로 만든다.
+ * 그림일기 한 장(public/seed-*.png)으로 만든다.
+ * 글꼴이 없는 기기에서도 똑같이 보이도록 마지막에 PNG로 구워 낸다.
  *
  * 실행: npm run seed-compose
  *
@@ -23,9 +24,10 @@ const diaries: Record<string, { file: string; lines: string[] }> = {
 };
 
 const WIDTH = 1000;
-const ART_HEIGHT = 620;
+const ART_HEIGHT = 600;
 const HEIGHT = 760;
 const HANDWRITING = "&quot;Nanum Pen Script&quot;, Gaegu, &quot;Apple SD Gothic Neo&quot;, sans-serif";
+const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 /** macOS의 sips로 그림을 줄이고 JPEG로 바꿔 용량을 낮춘다. */
 async function shrink(pngPath: string) {
@@ -37,10 +39,11 @@ async function shrink(pngPath: string) {
 
 function svgFor(imageBase64: string, lines: string[]) {
   const text = lines
-    .map(
-      (line, index) =>
-        `  <text x="70" y="${ART_HEIGHT + 70 + index * 52}" font-family=${`"${HANDWRITING}"`} font-size="40" fill="#4a3f38" transform="rotate(${index % 2 ? 0.5 : -0.7} 70 ${ART_HEIGHT + 70 + index * 52})">${line}</text>`
-    )
+    .map((line, index) => {
+      const y = ART_HEIGHT + 78 + index * 62;
+      // 얇은 펜 글꼴이라 잘 안 읽혀서, 크게 쓰고 같은 색으로 한 번 더 그어 굵게 만든다.
+      return `  <text x="70" y="${y}" font-family=${`"${HANDWRITING}"`} font-size="52" fill="#2f2620" stroke="#2f2620" stroke-width="1.1" paint-order="stroke" transform="rotate(${index % 2 ? 0.4 : -0.6} 70 ${y})">${line}</text>`;
+    })
     .join("\n");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
   <rect width="${WIDTH}" height="${HEIGHT}" rx="24" fill="#fffdf6"/>
@@ -51,14 +54,30 @@ ${text}
 `;
 }
 
+/** SVG를 크롬으로 구워 PNG로 만든다. 보는 기기에 글꼴이 없어도 똑같이 보인다. */
+async function rasterize(svg: string, target: string) {
+  const dir = await mkdtemp(join(tmpdir(), "seed-page-"));
+  const svgPath = join(dir, "page.svg");
+  await writeFile(svgPath, svg);
+  await run(CHROME, [
+    "--headless",
+    "--disable-gpu",
+    "--hide-scrollbars",
+    "--force-device-scale-factor=2",
+    `--window-size=${WIDTH},${HEIGHT}`,
+    `--screenshot=${target}`,
+    `file://${svgPath}`
+  ]);
+}
+
 async function main() {
   for (const [name, diary] of Object.entries(diaries)) {
     const source = join(process.cwd(), "public", "seed-art", `${name}.png`);
     const small = await shrink(source);
     const svg = svgFor(small.toString("base64"), diary.lines);
-    const target = join(process.cwd(), "public", `${diary.file}.svg`);
-    await writeFile(target, svg);
-    console.log(`[${name}] public/${diary.file}.svg (${Math.round(svg.length / 1024)}KB)`);
+    const target = join(process.cwd(), "public", `${diary.file}.png`);
+    await rasterize(svg, target);
+    console.log(`[${name}] public/${diary.file}.png`);
   }
 }
 

@@ -26,7 +26,7 @@ export const seedBooks = [
     hook: "길 잃은 별을 찾으러 떠난 우주 토끼. 그다음은 아직 아무도 몰라요.",
     chapters: [
       {
-        imagePath: "/seed-rabbit-1.svg",
+        imagePath: "/seed-rabbit-1.png",
         analysis: {
           characters: ["민준이", "우주 토끼"],
           place: "깜깜한 우주",
@@ -81,7 +81,7 @@ export const seedBooks = [
         }
       },
       {
-        imagePath: "/seed-rabbit-2.svg",
+        imagePath: "/seed-rabbit-2.png",
         analysis: {
           characters: ["민준이", "우주 토끼", "길 잃은 별"],
           place: "별 배 위",
@@ -145,7 +145,7 @@ export const seedBooks = [
     hook: "밤마다 책을 읽는 공룡. 무슨 책을 그렇게 열심히 읽는 걸까요?",
     chapters: [
       {
-        imagePath: "/seed-dino-1.svg",
+        imagePath: "/seed-dino-1.png",
         analysis: {
           characters: ["하윤이", "초록 공룡"],
           place: "밤의 도서관",
@@ -209,7 +209,7 @@ export const seedBooks = [
     hook: "눈사람이 건넨 초대장. 눈사람 마을 잔치에는 누가 올까요?",
     chapters: [
       {
-        imagePath: "/seed-snow-1.svg",
+        imagePath: "/seed-snow-1.png",
         analysis: {
           characters: ["서준이", "눈사람"],
           place: "눈 내리는 마을",

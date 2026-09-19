@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { appendChapter, BOOK_STORAGE_KEY, clearBook, isBookFull, loadBook, saveBook } from "../public/shared/book-storage.js";
+import {
+  appendChapter,
+  BOOK_LIBRARY_STORAGE_KEY,
+  BOOK_STORAGE_KEY,
+  clearBook,
+  isBookFull,
+  loadBook,
+  loadBookLibrary,
+  saveBook
+} from "../public/shared/book-storage.js";
 import { createDemoStory, demoAnalysis } from "../public/shared/demo-data.js";
 import { parsePreviousChapters } from "../public/shared/previous-chapters.js";
 import type { StoryChapter } from "../public/shared/story-types.js";
@@ -57,6 +66,18 @@ describe("book storage", () => {
     const storage = memoryStorage();
     storage.setItem(BOOK_STORAGE_KEY, "{not json");
     expect(loadBook(storage)).toBeNull();
+  });
+
+  it("저장한 여러 책을 책장용 최신순 목록으로 보관한다", () => {
+    const storage = memoryStorage();
+    const older = appendChapter(null, chapter(1), meta, new Date("2026-09-18T10:00:00.000Z"));
+    const newer = appendChapter(null, chapter(1), meta, new Date("2026-09-20T10:00:00.000Z"));
+
+    saveBook(storage, older);
+    saveBook(storage, newer);
+
+    expect(loadBookLibrary(storage).map((book) => book.id)).toEqual([newer.id, older.id]);
+    expect(JSON.parse(storage.getItem(BOOK_LIBRARY_STORAGE_KEY) || "[]")).toHaveLength(2);
   });
 });
 

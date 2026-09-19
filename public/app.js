@@ -1,29 +1,32 @@
-// 그림이야기 - 5단계 아이 주도 흐름 (그림 올리기 → 부모 확인 → 언어 고르기 → 이야기 보기 → 다시 그리기)
+// 그림이야기 - 아이 주도 흐름 (홈 → 그림 올리기 → 부모 확인 → 언어 고르기 → 이야기 보기 → 다시 그리기)
 // public/shared의 공용 모듈을 브라우저에서 그대로 import한다.
 
 import { withParticle } from "./shared/korean.js";
 import { transitionStage } from "./shared/wizard.js";
 import { combineStory } from "./shared/story-normalize.js";
 import { demoSampleImagePath } from "./shared/demo-data.js";
-import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "./shared/book-storage.js";
+import { appendChapter, clearBook, isBookFull, loadBook, loadBookLibrary, saveBook } from "./shared/book-storage.js";
 import { seedBooks } from "./shared/seed-books.js";
 import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.js";
 import { getCharacterBox, getPageFraming } from "./shared/page-composition.js";
 import { getRecurringWords, isCloseMatch, isPracticed, markPracticed } from "./shared/word-practice.js";
+import { childJourneySteps, choiceIconForText, homeActions, icons, missionHints } from "./shared/design-copy.js";
 
 const root = document.querySelector("#app-root");
 
-const stageOrder = ["upload", "review", "language", "story", "offline"];
 const stageLabels = {
+  home: "시작",
   upload: "그림 올리기",
   review: "부모 확인",
   language: "언어 고르기",
   story: "이야기 보기",
   offline: "다시 그리기",
+  shelf: "책장",
   book: "동화책",
-  friends: "친구 이야기"
+  friends: "친구 이야기",
+  relayRead: "앞 이야기"
 };
-const backTarget = { review: "upload", language: "review", story: "language" };
+const backTarget = { upload: "home", friends: "home", relayRead: "friends", review: "upload", language: "review", story: "language", book: "shelf" };
 const sceneClasses = ["scene-dino", "scene-magic", "scene-sea", "scene-night"];
 
 function browserStorage() {
@@ -36,7 +39,7 @@ function browserStorage() {
 
 /** @type {any} */
 const state = {
-  stage: "upload",
+  stage: "home",
   nickname: "수민",
   age: 7,
   imageDataUrl: "",
@@ -50,7 +53,6 @@ const state = {
   ownText: "",
   ownByVoice: false,
   voiceError: "",
-  typing: false,
   story: null,
   pageIndex: 0,
   busy: false,
@@ -58,11 +60,15 @@ const state = {
   demoMode: false,
   finished: false,
   book: null,
+  library: [],
+  shelfView: "album",
+  shelfSort: "newest",
   characterCutoutDataUrl: "",
   // "cutout" = 주인공만 오려 배경에 얹기, "whole" = 그림 전체를 액자로 보여 주기
   artMode: "whole",
   pageArt: {}, // pageIndex -> { imageDataUrl, framing, textSide }
   bookIndex: 0,
+  selectedSeedId: "",
   // "계속 나온 단어" 발음 연습 진행 상태. en(소문자) -> { listening, attempts, feedback }.
   // 도장(book.practiced)과 달리 새로고침하면 사라진다 — 그 자리에서의 시도 표시일 뿐이다.
   wordPractice: {}
@@ -71,8 +77,13 @@ const state = {
 (function init() {
   const storage = browserStorage();
   const saved = storage ? loadBook(storage) : null;
+  state.library = storage ? loadBookLibrary(storage) : [];
   if (saved) {
     state.book = saved;
+    if (!state.library.some((book) => book.id === saved.id)) {
+      state.library = [saved, ...state.library];
+      if (storage) saveBook(storage, saved);
+    }
     if (!isBookFull(saved)) {
       state.nickname = saved.nickname;
       state.age = saved.age;
@@ -89,6 +100,43 @@ const state = {
 function bookFull() {
   return isBookFull(state.book);
 }
+
+function syncLibrary(storage = browserStorage()) {
+  state.library = storage ? loadBookLibrary(storage) : state.book ? [state.book] : [];
+}
+
+function shelfBooks() {
+  const books = [...state.library];
+  if (state.book && !books.some((book) => book.id === state.book.id)) books.unshift(state.book);
+  const direction = state.shelfSort === "oldest" ? 1 : -1;
+  return books
+    .filter((book) => book && book.chapters?.length)
+    .sort((a, b) => direction * (bookDateTime(a) - bookDateTime(b)));
+}
+
+function bookDateTime(book) {
+  const value = Date.parse(book.updatedAt || book.createdAt);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function formatBookDate(book) {
+  const value = book.updatedAt || book.createdAt;
+  if (!value) return "날짜 없음";
+  try {
+    return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(value));
+  } catch {
+    return "날짜 없음";
+  }
+}
+
+function activateBook(book) {
+  state.book = book;
+  state.nickname = book.nickname;
+  state.age = book.age;
+  state.language = book.language;
+  state.bookIndex = 0;
+}
+
 function continuing() {
   return Boolean(state.book && state.book.chapters.length > 0 && !bookFull());
 }
@@ -387,10 +435,10 @@ async function ensurePageArt(index) {
 function render() {
   root.innerHTML = `
     ${brandBarHtml()}
-    ${state.stage === "upload" && !state.book ? heroHtml() : ""}
+    ${state.stage === "home" ? heroHtml() : ""}
     <div class="studio-shell stage-${state.stage}">
       ${state.stage === "upload" && state.book ? bookBannerHtml() : ""}
-      ${["book", "friends", "parent"].includes(state.stage) ? "" : stepperHtml()}
+      ${["home", "book", "friends", "relayRead", "shelf", "parent"].includes(state.stage) ? "" : stepperHtml()}
       <section class="studio-card">
         ${stageContentHtml()}
       </section>
@@ -421,8 +469,8 @@ function brandBarHtml() {
   const showParent = Boolean(state.book && state.book.chapters.length);
   return `
     <header class="brand-bar">
-      <span class="brand-mark">📖 그림이야기</span>
-      ${showParent ? `<button type="button" class="parent-entry-button" data-action="view-parent">👩‍👧 부모</button>` : ""}
+      <button type="button" class="brand-mark" data-action="go-home" aria-label="처음 화면으로 가기">${iconImg("brand", "", "brand-icon")}<span>그림이야기</span></button>
+      ${showParent ? `<button type="button" class="parent-entry-button" data-action="view-parent">${iconImg("parent")}부모</button>` : ""}
     </header>
   `;
 }
@@ -431,18 +479,17 @@ function heroHtml() {
   return `
     <section class="hero" id="hero-banner" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow">그림일기 → 한국어·영어 동화</p>
-        <h1 id="hero-title">아이 그림이<br />동화가 되는 순간</h1>
-        <p class="lead">그림일기를 올리면 AI가 아이의 상상을 4페이지 동화와 쉬운 영어 이야기로 열어줘요.</p>
+        <p class="eyebrow">그림 → 이야기 → 다시 그림</p>
+        <h1 id="hero-title">그림이 다음 이야기를<br />불러와요</h1>
+        <p class="lead">종이에 그린 장면을 동화로 읽고, 아이가 고른 다음 장면을 다시 종이에 그려요.</p>
       </div>
-      <div class="hero-preview" aria-hidden="true">
-        <div class="paper paper-one"></div>
-        <div class="paper paper-two"></div>
-        <div class="paper paper-three">
-          <span></span>
-          <strong>Once upon a time</strong>
-        </div>
-      </div>
+      <figure class="hero-preview" aria-hidden="true">
+        <img src="/seed-dino-1.png" alt="" />
+        <figcaption>
+          <b>아이가 그린 첫 장면</b>
+          <span>공룡이 책을 읽는 밤</span>
+        </figcaption>
+      </figure>
     </section>
   `;
 }
@@ -453,7 +500,7 @@ function bookBannerHtml() {
     <section class="book-banner">
       <div>
         <p class="eyebrow">${bookFull() ? "완성된 동화책이 있어요" : `${chapterNumber()}편 이어 그리기`}</p>
-        <b>📖 ${escapeHtml(book.chapters[0]?.story.titleKo || "")} · ${book.chapters.length}/${MAX_CHAPTERS}편</b>
+        <b>${escapeHtml(book.chapters[0]?.story.titleKo || "")} · ${book.chapters.length}/${MAX_CHAPTERS}편</b>
         <small>${
           bookFull()
             ? "새 그림을 올리면 새 책이 시작돼요. 지금 책은 먼저 인쇄해두세요."
@@ -469,16 +516,17 @@ function bookBannerHtml() {
 }
 
 function stepperHtml() {
-  const activeStep = stageOrder.indexOf(state.stage);
+  const activeStage = state.choosing ? "choice" : state.stage === "language" ? "review" : state.stage;
+  const activeStep = childJourneySteps.findIndex((step) => step.stage === activeStage);
   return `
-    <p class="step-count">${activeStep + 1} / ${stageOrder.length}</p>
+    <p class="step-count">이야기 여행</p>
     <nav class="stepper" aria-label="이야기 만들기 진행 단계">
-      ${stageOrder
+      ${childJourneySteps
         .map(
-          (item, index) => `
+          (step, index) => `
         <div class="step-dot ${index <= activeStep ? "active" : ""}">
-          <span>${index + 1}</span>
-          <small>${stageLabels[item]}</small>
+          <span>${iconImg(step.icon)}</span>
+          <small>${step.label}</small>
         </div>`
         )
         .join("")}
@@ -488,33 +536,83 @@ function stepperHtml() {
 
 function stageContentHtml() {
   const backBtn =
-    !["upload", "offline", "parent"].includes(state.stage) && !state.choosing && backTarget[state.stage]
+    !["home", "offline", "parent"].includes(state.stage) && !state.choosing && backTarget[state.stage]
       ? `<button class="back-button" type="button" data-action="back" data-target="${backTarget[state.stage]}">← 이전</button>`
       : "";
-  const demoBadge = state.demoMode ? `<p class="demo-badge">✦ API 키 없이 실행 중인 안전한 발표 데모예요.</p>` : "";
+  const demoBadge = state.demoMode ? `<p class="demo-badge">예제 모드 · API 키 없이 실행 중인 안전한 발표 데모예요.</p>` : "";
   const errorMsg = state.error ? `<p class="error-message" role="alert">${escapeHtml(state.error)}</p>` : "";
 
   let body = "";
-  if (state.stage === "upload") body = uploadHtml();
+  if (state.stage === "home") body = homeHtml();
+  else if (state.stage === "upload") body = uploadHtml();
   else if (state.stage === "friends") body = friendsHtml();
+  else if (state.stage === "relayRead") body = relayReadHtml();
   else if (state.stage === "review") body = reviewHtml();
   else if (state.stage === "language") body = languageHtml();
   else if (state.stage === "story") body = state.choosing ? choiceHtml() : storyHtml();
   else if (state.stage === "offline") body = offlineHtml();
+  else if (state.stage === "shelf") body = shelfHtml();
   else if (state.stage === "book") body = bookViewHtml();
   else if (state.stage === "parent") body = parentRecordHtml();
 
   return `${backBtn}${demoBadge}${errorMsg}${body}`;
 }
 
+/* -------- 시작 화면 -------- */
+
+function homeHtml() {
+  const hasBook = Boolean(state.book && state.book.chapters.length);
+  const complete = hasBook && bookFull();
+  const title = state.book?.chapters[0]?.story.titleKo || "";
+  return `
+    <div class="stage-panel home-panel">
+      <div class="stage-heading">
+        <p class="eyebrow">그림 → 이야기 → 다시 그림</p>
+        <h2>오늘은 뭘 그릴까?</h2>
+        <p>종이에 그린 그림이 책이 되고, 다음 장면은 다시 종이에 그려요.</p>
+      </div>
+
+      <div class="home-actions">
+        ${
+          hasBook
+            ? `<button class="home-card featured" type="button" data-action="go-shelf">
+                ${iconImg("myBook", "", "home-card-icon")}
+                <b>${homeActions.myBook}</b>
+                <small>${escapeHtml(title)} · ${state.book.chapters.length}/${MAX_CHAPTERS}편</small>
+              </button>`
+            : ""
+        }
+        <button class="home-card" type="button" data-action="${hasBook ? "new-book" : "start-upload"}">
+          ${iconImg("newDrawing", "", "home-card-icon")}
+          <b>${homeActions.newDrawing}</b>
+          <small>종이에 그린 그림을 올려 1편을 만들어요</small>
+        </button>
+        <button class="home-card" type="button" data-action="go-friends">
+          ${iconImg("friendBook", "", "home-card-icon")}
+          <b>${homeActions.friendBook}</b>
+          <small>앞 이야기를 읽고 내 그림으로 다음 장면을 붙여요</small>
+        </button>
+      </div>
+
+      <p class="privacy-note home-note">그림과 책은 이 브라우저에만 남아요. 서버에는 저장하지 않아요.</p>
+    </div>
+  `;
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function iconImg(name, alt = "", className = "ui-icon") {
+  const src = icons[name];
+  if (!src) return "";
+  return `<img class="${className}" src="${src}" alt="${escapeHtml(alt)}" ${alt ? "" : 'aria-hidden="true"'} />`;
 }
 
 /* -------- 1단계: 그림 올리기 -------- */
 
 function uploadHtml() {
-  const heading = continuing() ? "다음 장면 그림을 올려주세요" : "오늘의 그림일기를 올려주세요";
+  const heading = continuing() ? "다음 장면을 올려요" : "그림을 올려요";
   const desc = continuing() ? "AI가 지난 이야기에 이어서 새 편을 써요." : "그림과 손글씨를 AI가 함께 읽어요.";
   return `
     <form class="stage-panel" id="upload-form">
@@ -529,20 +627,11 @@ function uploadHtml() {
         ${
           state.imageDataUrl
             ? `<img src="${state.imageDataUrl}" alt="올린 그림일기 미리보기" />`
-            : `<span><b>📷 그림일기 사진 선택</b><small>JPG, PNG, WebP · 최대 8MB</small></span>`
+            : `<span>${iconImg("photoUpload", "", "upload-icon")}<b>그림 사진 선택</b><small>JPG, PNG, WebP · 최대 8MB</small></span>`
         }
       </label>
       ${state.imageName ? `<p class="file-name">${escapeHtml(state.imageName)}</p>` : ""}
       <button class="text-button" type="button" data-action="use-sample">사진이 없나요? 예제로 시작하기</button>
-      ${
-        !state.book
-          ? `<button class="friend-entry" type="button" data-action="go-friends">
-              <span aria-hidden="true">🤝</span>
-              <b>친구가 쓰다 만 이야기, 내가 완성해볼까?</b>
-              <small>친구 이야기를 읽고 다음 장면을 그리면 함께 지은 책이 돼요</small>
-            </button>`
-          : ""
-      }
 
       <div class="two-fields">
         <label>
@@ -566,7 +655,7 @@ function uploadHtml() {
       </div>
 
       <button class="primary-button" type="submit" ${canSubmitUpload() ? "" : "disabled"} ${state.busy ? "disabled" : ""}>
-        ${state.busy ? "그림 속 이야기를 찾고 있어요…" : "이야기 시작하기 →"}
+        ${state.busy ? "그림 속 이야기를 찾고 있어요…" : "이야기 시작하기"}
       </button>
     </form>
   `;
@@ -582,12 +671,12 @@ function friendsHtml() {
   return `
     <div class="stage-panel friend-panel">
       <div class="stage-heading">
-        <span class="stage-emoji" aria-hidden="true">🤝</span>
-        <p class="eyebrow">친구가 쓰다 만 이야기</p>
-        <h2>내가 이어서 완성해볼까?</h2>
-        <p>친구가 남긴 이야기를 읽고, 다음 장면을 그려서 함께 책을 완성해요.</p>
+        <span class="stage-emoji" aria-hidden="true">${iconImg("friendBook")}</span>
+        <p class="eyebrow">친구 책</p>
+        <h2>어떤 책을 이어 그릴까?</h2>
+        <p>친구가 만든 장면을 먼저 읽고, 내 그림으로 릴레이 그림책을 이어가요.</p>
       </div>
-      <p class="seed-note">🛈 지금 보이는 이야기는 그림이야기 팀이 만든 예시예요.</p>
+      <p class="seed-note">안내 · 지금 보이는 이야기는 그림이야기 팀이 만든 예시예요.</p>
       <div class="seed-list">
         ${seedBooks
           .map(
@@ -595,22 +684,14 @@ function friendsHtml() {
           <article class="seed-card">
             <div class="seed-art">
               <img src="${seed.chapters[0].imagePath}" alt="${escapeHtml(seed.authorName)}의 그림" />
-              <span class="seed-emoji" aria-hidden="true">${seed.emoji}</span>
+              <span class="seed-emoji" aria-hidden="true">${iconImg("friendBook")}</span>
             </div>
             <div class="seed-body">
-              <p class="eyebrow">${escapeHtml(seed.authorName)}(${seed.authorAge}세)가 ${seed.chapters.length}편까지 썼어요</p>
+              <p class="eyebrow">${escapeHtml(seed.authorName)}(${seed.authorAge}세) · ${seed.chapters.length}/${MAX_CHAPTERS}편</p>
               <h3>${escapeHtml(seed.chapters[0].story.titleKo)}</h3>
               <p class="seed-hook">${escapeHtml(seed.hook)}</p>
-              <details>
-                <summary>지금까지의 이야기 읽기</summary>
-                <ol>
-                  ${seed.chapters
-                    .map((chapter) => `<li><b>${escapeHtml(chapter.story.titleKo)}</b><span>${escapeHtml(chapter.story.summaryKo)}</span></li>`)
-                    .join("")}
-                </ol>
-              </details>
-              <button class="primary-button" type="button" data-action="pick-friend" data-seed-id="${seed.id}" ${state.busy ? "disabled" : ""}>
-                ${state.busy ? "이야기를 가져오는 중…" : `내가 ${seed.chapters.length + 1}편 그릴래 →`}
+              <button class="primary-button" type="button" data-action="preview-friend" data-seed-id="${seed.id}">
+                앞 이야기 보기 →
               </button>
               <small>남은 편: ${MAX_CHAPTERS - seed.chapters.length}편</small>
             </div>
@@ -619,7 +700,54 @@ function friendsHtml() {
           )
           .join("")}
       </div>
-      <button class="text-button" type="button" data-action="back-to-upload">내 그림으로 새 이야기 시작하기</button>
+      <button class="text-button" type="button" data-action="go-home">처음 화면으로</button>
+    </div>
+  `;
+}
+
+function selectedSeed() {
+  return seedBooks.find((seed) => seed.id === state.selectedSeedId) || seedBooks[0];
+}
+
+function relayReadHtml() {
+  const seed = selectedSeed();
+  if (!seed) return "";
+  const chapters = seed.chapters;
+  const last = chapters.at(-1);
+  return `
+    <div class="stage-panel relay-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">${iconImg("friendBook")}</span>
+        <p class="eyebrow">${escapeHtml(withParticle(seed.authorName, "이가", "가"))} 시작한 이야기 · ${seed.authorAge}세</p>
+        <h2>${escapeHtml(chapters[0].story.titleKo)}</h2>
+        <p>${escapeHtml(seed.hook)}</p>
+      </div>
+
+      <div class="relay-reader">
+        ${chapters
+          .map(
+            (chapter, index) => `
+          <article class="relay-chapter">
+            <img src="${chapter.imagePath}" alt="${escapeHtml(seed.authorName)}의 ${index + 1}편 그림" />
+            <div>
+              <p class="eyebrow">${index + 1}편 · ${escapeHtml(seed.authorName)} 그림</p>
+              <h3>${escapeHtml(chapter.story.titleKo)}</h3>
+              <p>${escapeHtml(chapter.story.summaryKo)}</p>
+            </div>
+          </article>`
+          )
+          .join("")}
+      </div>
+
+      <div class="mission-card mission-sheet">
+        <p class="eyebrow">다음 장면 미션</p>
+        <h3>${escapeHtml(last.story.offlinePromptKo)}</h3>
+        ${missionHintsHtml()}
+      </div>
+
+      <button class="primary-button" type="button" data-action="start-friend-relay" data-seed-id="${seed.id}" ${state.busy ? "disabled" : ""}>
+        ${state.busy ? "이야기를 가져오는 중…" : `사진 올리기`}
+      </button>
     </div>
   `;
 }
@@ -632,9 +760,9 @@ function reviewHtml() {
   return `
     <div class="stage-panel compact-panel trust-panel">
       <div class="stage-heading">
-        <span class="stage-emoji" aria-hidden="true">🔎</span>
+        <span class="stage-emoji" aria-hidden="true">${iconImg("review")}</span>
         <p class="eyebrow">AI가 이렇게 이해했어요</p>
-        <h2>이야기를 만들기 전에<br />부모님이 한 번 확인해주세요.</h2>
+        <h2>그림 속 이야기가 맞나요?</h2>
       </div>
       ${
         continuing() && state.book
@@ -676,23 +804,23 @@ function readReviewFields() {
 
 function languageHtml() {
   const options = [
-    { value: "ko", emoji: "🇰🇷", title: "한국어로 읽기", desc: "한국어 이야기와 단어" },
-    { value: "en", emoji: "🇺🇸", title: "Read in English", desc: "Easy English story and words" },
-    { value: "both", emoji: "🌈", title: "한국어 + English", desc: "같은 이야기를 두 언어로" }
+    { value: "ko", mark: "가", title: "한국어로 읽기", desc: "한국어 이야기와 단어" },
+    { value: "en", mark: "A", title: "Read in English", desc: "Easy English story and words" },
+    { value: "both", mark: "가/A", title: "한국어 + English", desc: "같은 이야기를 두 언어로" }
   ];
   return `
     <div class="stage-panel compact-panel">
       <div class="stage-heading">
-        <span class="stage-emoji" aria-hidden="true">🌏</span>
+        <span class="stage-emoji" aria-hidden="true">${iconImg("read")}</span>
         <p class="eyebrow">편한 언어로 이해하고 배우는 언어로 다시 만나요</p>
-        <h2>어떻게 읽어볼까요?</h2>
+        <h2>어떻게 읽을까요?</h2>
       </div>
       <div class="language-options">
         ${options
           .map(
             (opt) => `
           <button type="button" class="${state.language === opt.value ? "selected" : ""}" data-action="set-language" data-value="${opt.value}">
-            <span>${opt.emoji}</span><b>${opt.title}</b><small>${opt.desc}</small>
+            <span class="language-mark">${escapeHtml(opt.mark)}</span><b>${opt.title}</b><small>${opt.desc}</small>
           </button>`
           )
           .join("")}
@@ -756,8 +884,8 @@ function storyHtml() {
 
   const listenButtons = `
     <div class="listen-row">
-      ${state.language !== "en" ? `<button type="button" data-action="listen-ko">🔊 한국어 듣기</button>` : ""}
-      ${state.language !== "ko" ? `<button type="button" data-action="listen-en">🔊 English</button>` : ""}
+      ${state.language !== "en" ? `<button type="button" data-action="listen-ko">${iconImg("listen")}한국어 듣기</button>` : ""}
+      ${state.language !== "ko" ? `<button type="button" data-action="listen-en">${iconImg("listen")}English</button>` : ""}
     </div>
   `;
   const wordRow = `
@@ -790,7 +918,7 @@ function storyHtml() {
       <div class="story-copy" style="position:relative;">
         ${
           state.story && state.story.choice && state.pageIndex === OPENING_PAGES
-            ? `<span class="choice-badge">${state.story.choice.byVoice ? "🎤" : "👆"} ${escapeHtml(state.nickname)}의 선택 · ${escapeHtml(state.story.choice.ko)}</span>`
+            ? `<span class="choice-badge">${state.story.choice.byVoice ? "말로" : "골라서"} ${escapeHtml(state.nickname)}의 선택 · ${escapeHtml(state.story.choice.ko)}</span>`
             : ""
         }
         ${listenButtons}
@@ -817,20 +945,21 @@ function choiceHtml() {
     <button class="back-button" type="button" data-action="stop-choosing" ${state.busy ? "disabled" : ""}>← 이야기 다시 보기</button>
     <div class="choice-panel">
       <div class="stage-heading">
-        <span class="stage-emoji" aria-hidden="true">🤔</span>
+        <span class="stage-emoji choice-heading-icon" aria-hidden="true">${iconImg("choice")}</span>
         <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례! 다음 장면을 정해요</p>
         <h2>${escapeHtml(question)}</h2>
         ${englishLine}
-        <button class="listen-question" type="button" data-action="ask-again">🔊 질문 다시 듣기</button>
+        <button class="listen-question" type="button" data-action="ask-again">${iconImg("listen")}질문 다시 듣기</button>
       </div>
 
       <div class="choice-cards" role="radiogroup" aria-label="다음 장면 고르기">
         ${opening.choices
           .map((card, index) => {
             const selected = state.choiceSelection && state.choiceSelection.kind === "card" && state.choiceSelection.index === index;
+            const actionIcon = choiceIconForText(`${card.ko} ${card.en}`);
             return `
             <button type="button" role="radio" aria-checked="${selected}" class="choice-card ${selected ? "selected" : ""}" data-action="pick-card" data-index="${index}">
-              <span class="choice-emoji" aria-hidden="true">${card.emoji}</span>
+              <span class="choice-emoji" aria-hidden="true">${iconImg(actionIcon)}</span>
               ${state.language !== "en" ? `<b>${escapeHtml(card.ko)}</b>` : ""}
               ${state.language !== "ko" ? `<small>${escapeHtml(card.en)}</small>` : ""}
             </button>`;
@@ -838,48 +967,26 @@ function choiceHtml() {
           .join("")}
 
         <div class="choice-card own-card ${state.choiceSelection && state.choiceSelection.kind === "own" ? "selected" : ""}">
-          <span class="choice-emoji" aria-hidden="true">💡</span>
+          <span class="choice-emoji" aria-hidden="true">${iconImg("speak")}</span>
           <b>내 생각이 있어요</b>
+          <label class="own-input">
+            <span>부모님이 대신 적기</span>
+            <input id="own-text-input" maxlength="60" placeholder="예: 조개를 집에 데려가기" value="${escapeHtml(state.ownText)}" />
+          </label>
           ${
             voiceSupported()
               ? `<button type="button" class="voice-button ${state.voiceListening ? "listening" : ""}" data-action="voice-start">${
-                  state.voiceListening ? "듣고 있어요…" : "🎤 말로 하기"
+                  state.voiceListening ? "듣고 있어요…" : `${iconImg("speak")}말로 하기`
                 }</button>`
               : ""
           }
-          <button class="text-button" type="button" data-action="toggle-typing">${voiceSupported() ? "부모님이 대신 적기" : "✏️ 부모님이 적어주기"}</button>
         </div>
       </div>
 
       ${state.voiceError ? `<p class="voice-error" role="alert">${escapeHtml(state.voiceError)}</p>` : ""}
 
-      ${
-        state.typing
-          ? `<label class="own-typing">
-              <span>아이가 말한 생각을 그대로 적어주세요</span>
-              <input id="own-text-input" maxlength="60" placeholder="예: 조개를 집에 데려가기" value="${escapeHtml(state.ownText)}" />
-            </label>`
-          : ""
-      }
-
-      ${
-        ownSelected && state.ownByVoice
-          ? `<div class="voice-confirm" role="status">
-              <p><small>이렇게 들었어요</small><b>"${escapeHtml(state.ownText)}"</b></p>
-              <div>
-                ${
-                  voiceSupported()
-                    ? `<button type="button" class="voice-button" data-action="voice-start">🔁 다시 말하기</button>`
-                    : ""
-                }
-                <button type="button" class="text-button" data-action="edit-own">틀렸으면 고쳐 적기</button>
-              </div>
-            </div>`
-          : ""
-      }
-
       <button class="primary-button" type="button" data-action="confirm-choice" ${!state.choiceSelection || state.busy ? "disabled" : ""}>
-        ${state.busy ? "고른 장면으로 이야기를 이어 쓰는 중…" : state.choiceSelection ? "이걸로 할래! →" : "하나를 골라주세요"}
+        ${state.busy ? "고른 장면으로 이야기를 이어 쓰는 중…" : state.choiceSelection ? "이걸로 할래" : "하나를 골라주세요"}
       </button>
     </div>
   `;
@@ -897,18 +1004,18 @@ function offlineHtml() {
   const full = bookFull();
   return `
     <div class="stage-panel offline-panel">
-      <span class="stage-emoji" aria-hidden="true">🎨</span>
-      <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례예요</p>
-      <h2>화면을 끌 시간이에요.</h2>
-      <div class="offline-question">
-        ${state.language !== "en" ? `<p>${escapeHtml(story.offlinePromptKo)}</p>` : ""}
+      <div class="mission-sheet offline-question">
+        <span class="mission-stamp" aria-hidden="true">${iconImg("paperMission")}</span>
+        <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례예요</p>
+        <h2>${state.language !== "en" ? escapeHtml(story.offlinePromptKo) : "Draw the next scene on paper."}</h2>
         ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(story.offlinePromptEn)}</p>` : ""}
+        ${missionHintsHtml()}
       </div>
       ${
         state.book && state.book.origin
           ? `<p class="coauthor-line">${
               full
-                ? `${escapeHtml(state.book.origin.authorName)}의 이야기를 ${escapeHtml(withParticle(state.nickname, "이가", "가"))} 완성했어요! 🎉`
+                ? `${escapeHtml(state.book.origin.authorName)}의 이야기를 ${escapeHtml(withParticle(state.nickname, "이가", "가"))} 완성했어요!`
                 : `${escapeHtml(state.book.origin.authorName)}의 이야기를 ${escapeHtml(withParticle(state.nickname, "이가", "가"))} 이어 갔어요!`
             }</p>`
           : ""
@@ -917,25 +1024,175 @@ function offlineHtml() {
         state.book && !full
           ? `
         <div class="paper-prompt">
-          <span>✏️</span>
-          <b>다 그렸으면 사진을 올려 ${state.book.chapters.length + 1}편을 이어가요</b>
+          ${iconImg("paperMission", "", "paper-prompt-icon")}
+          <b>${state.book.chapters.length + 1}편으로 이어가요</b>
           <small>지금까지 ${state.book.chapters.length}/${MAX_CHAPTERS}편 · 책은 이 기기에 보관돼요</small>
         </div>
         <div class="offline-actions">
-          <button class="primary-button" type="button" data-action="continue-book">다음 장면 그림 올리기 →</button>
-          <button class="secondary-button" type="button" data-action="view-book">지금까지 만든 책 보기</button>
-          <button class="secondary-button" type="button" data-action="view-parent">👩‍👧 부모 기록 보기</button>
-          <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
+          <button class="primary-button" type="button" data-action="continue-book">그림 사진 올리기</button>
+          <div class="quiet-actions">
+            <button class="text-button" type="button" data-action="view-book">책 보기</button>
+            <button class="text-button" type="button" data-action="go-shelf">책장</button>
+            <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
+            <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지</button>
+          </div>
         </div>`
           : `
-        <div class="paper-prompt"><span>🎉</span><b>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
+        <div class="paper-prompt">${iconImg("stamp", "", "paper-prompt-icon")}<b>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
         <div class="offline-actions">
-          <button class="primary-button" type="button" data-action="view-book">완성된 책 보기 📖</button>
-          <button class="secondary-button" type="button" data-action="view-parent">👩‍👧 부모 기록 보기</button>
-          <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
+          <button class="primary-button" type="button" data-action="view-book">완성된 책 보기</button>
+          <div class="quiet-actions">
+            <button class="text-button" type="button" data-action="go-shelf">책장</button>
+            <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
+            <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지</button>
+          </div>
         </div>`
       }
       ${state.finished ? `<p class="finish-message" role="status">잘했어요! 이제 종이와 색연필을 준비해볼까요?</p>` : ""}
+    </div>
+  `;
+}
+
+function missionHintsHtml() {
+  const hintIcons = ["newDrawing", "friendBook", "photoUpload"];
+  return `<div class="mission-hints" aria-label="그림 힌트">
+    ${missionHints
+      .map(
+        (hint, index) => `<span>
+          ${iconImg(hintIcons[index] || "paperMission", "", "mission-hint-icon")}
+          <b>${escapeHtml(hint)}</b>
+        </span>`
+      )
+      .join("")}
+  </div>`;
+}
+
+/* -------- 책장 -------- */
+
+function shelfControlsHtml() {
+  return `
+    <div class="shelf-controls" aria-label="책장 보기 방식">
+      <div class="segmented-control" role="group" aria-label="보기 방식">
+        <button type="button" data-action="set-shelf-view" data-view="album" aria-pressed="${state.shelfView === "album"}">앨범형</button>
+        <button type="button" data-action="set-shelf-view" data-view="list" aria-pressed="${state.shelfView === "list"}">목록형</button>
+      </div>
+      <div class="segmented-control" role="group" aria-label="정렬">
+        <button type="button" data-action="set-shelf-sort" data-sort="newest" aria-pressed="${state.shelfSort === "newest"}">최신순</button>
+        <button type="button" data-action="set-shelf-sort" data-sort="oldest" aria-pressed="${state.shelfSort === "oldest"}">오래된순</button>
+      </div>
+    </div>
+  `;
+}
+
+function shelfLibraryHtml(books) {
+  return `
+    <div class="shelf-library shelf-library-${state.shelfView}">
+      ${books.map((book) => shelfLibraryCardHtml(book)).join("")}
+    </div>
+  `;
+}
+
+function shelfLibraryCardHtml(book) {
+  const first = book.chapters[0];
+  const last = book.chapters.at(-1);
+  const complete = isBookFull(book);
+  const selected = state.book?.id === book.id;
+  return `
+    <button class="shelf-library-card ${selected ? "selected" : ""}" type="button" data-action="select-book" data-book-id="${escapeHtml(book.id)}" aria-pressed="${selected}">
+      <img src="${first.imageDataUrl}" alt="" />
+      <span>
+        <b>${escapeHtml(first.story.titleKo)}</b>
+        <small>${formatBookDate(book)} · ${book.chapters.length}/${MAX_CHAPTERS}편 · ${complete ? "완성" : "진행 중"}</small>
+        ${state.shelfView === "list" ? `<em>${escapeHtml(last.story.summaryKo)}</em>` : ""}
+      </span>
+    </button>
+  `;
+}
+
+function shelfBookDetailHtml(book) {
+  const first = book.chapters[0];
+  const last = book.chapters.at(-1);
+  const complete = isBookFull(book);
+  const places = uniqueValues(book.chapters.map((chapter) => chapter.analysis.place));
+  const recurring = getRecurringWords(book);
+  return `
+    <article class="shelf-book-card">
+      <img src="${first.imageDataUrl}" alt="책 표지 그림" />
+      <div>
+        <p class="progress-label">${complete ? "완성" : "진행 중"} · ${book.chapters.length}/${MAX_CHAPTERS}편 · ${formatBookDate(book)}</p>
+        <h3>${escapeHtml(last.story.summaryKo)}</h3>
+        <p class="shelf-question">${escapeHtml(last.story.offlinePromptKo)}</p>
+        ${
+          book.origin
+            ? `<p class="coauthor-line">${escapeHtml(withParticle(book.origin.authorName, "이가", "가"))} 시작한 이야기를 이어 그리고 있어요.</p>`
+            : ""
+        }
+      </div>
+    </article>
+
+    <div class="world-strip">
+      ${
+        places.length
+          ? `<div><b>다녀온 곳</b><span>${escapeHtml(places.join(" → "))}</span></div>`
+          : ""
+      }
+      ${
+        recurring.length
+          ? `<div><b>계속 나온 단어</b><span>${recurring.map((word) => `${escapeHtml(word.en)}(${escapeHtml(word.ko)})`).join(", ")}</span></div>`
+          : ""
+      }
+    </div>
+
+    <div class="shelf-actions">
+      ${
+        complete
+          ? `<button class="primary-button" type="button" data-action="view-book">책 읽기</button>`
+          : `<button class="primary-button" type="button" data-action="continue-book">다음 장면 그리기</button>`
+      }
+      <div class="quiet-actions">
+        ${complete ? "" : `<button class="text-button" type="button" data-action="view-book">지금까지 읽기</button>`}
+        <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
+        <button class="text-button" type="button" data-action="go-home">처음 화면</button>
+      </div>
+    </div>
+  `;
+}
+
+function shelfHtml() {
+  const books = shelfBooks();
+  if (!books.length) {
+    return `
+      <div class="stage-panel shelf-panel">
+      <div class="stage-heading">
+          <span class="stage-emoji" aria-hidden="true">${iconImg("myBook")}</span>
+          <p class="eyebrow">책장</p>
+          <h2>아직 만든 책이 없어요</h2>
+          <p>새 그림으로 시작하거나 친구가 시작한 이야기를 이어 그려보세요.</p>
+        </div>
+        <div class="shelf-actions">
+          <button class="primary-button" type="button" data-action="start-upload">내 그림으로 시작하기</button>
+          <div class="quiet-actions">
+            <button class="text-button" type="button" data-action="go-friends">친구 책 보기</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const selectedBook = state.book && state.book.chapters?.length ? state.book : books[0];
+  if (!state.book || !state.book.chapters?.length) activateBook(selectedBook);
+  return `
+    <div class="stage-panel shelf-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">${iconImg("myBook")}</span>
+        <p class="eyebrow">책장</p>
+        <h2>${escapeHtml(state.nickname || selectedBook.nickname)}의 그림책 앨범</h2>
+        <p>${books.length}권 · 날짜순으로 다시 볼 수 있어요</p>
+      </div>
+
+      ${shelfControlsHtml()}
+      ${shelfLibraryHtml(books)}
+      ${shelfBookDetailHtml(selectedBook)}
     </div>
   `;
 }
@@ -956,28 +1213,35 @@ function parentRecordHtml() {
   const voiceCount = chapters.filter((c) => c.story.choice && c.story.choice.byVoice).length;
   const last = chapters.at(-1);
   const name = escapeHtml(book.nickname);
+  const subjectName = escapeHtml(withParticle(book.nickname, "이가", "가"));
 
   return `
     <div class="parent-record">
       <div class="book-toolbar-wizard">
-        <strong>👩‍👧 부모 기록</strong>
+        <strong>${iconImg("parent")}부모 기록</strong>
         <div>
           <button type="button" data-action="view-book">아이 화면(동화책) 보기</button>
-          <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
+          <button type="button" data-action="print-book">${iconImg("print")}인쇄·PDF 저장</button>
         </div>
       </div>
 
       <div class="stage-heading">
         <p class="eyebrow">오늘 ${name}의 창작 기록</p>
-        <h2>${name}의 상상은 이렇게 움직였어요</h2>
+        <h2>오늘 남겨둘 장면</h2>
       </div>
 
-      <div class="record-cards">
-        <div class="record-card"><b>${chapters.length}편</b><small>함께 만든 이야기</small></div>
-        <div class="record-card"><b>${chapters.filter((c) => c.story.choice).length}번</b><small>아이가 직접 고른 장면</small></div>
-        <div class="record-card"><b>${voiceCount}번</b><small>말로 들려준 생각</small></div>
-        <div class="record-card"><b>${words.length}개</b><small>새로 만난 영어 단어</small></div>
-      </div>
+      <section class="record-observation">
+        <p>${chapters.length}편을 만들었고, ${chapters.filter((c) => c.story.choice).length}번은 ${subjectName} 다음 장면을 직접 골랐어요.</p>
+        <dl>
+          <div><dt>말로 남긴 선택</dt><dd>${voiceCount}번</dd></div>
+          <div><dt>새로 만난 단어</dt><dd>${words.length}개</dd></div>
+          ${
+            book.practiced && book.practiced.length
+              ? `<div><dt>오늘 말해본 단어</dt><dd>${book.practiced.length}개</dd></div>`
+              : ""
+          }
+        </dl>
+      </section>
 
       ${
         moods.length
@@ -989,14 +1253,14 @@ function parentRecordHtml() {
       }
 
       <section class="record-block">
-        <h3>편마다 남긴 기록</h3>
+        <h3>편마다 남긴 관찰</h3>
         <ul class="record-list">
           ${chapters
             .map((chapter, index) => {
               const choice = chapter.story.choice;
               return `<li>
                 <p class="record-title">${index + 1}편 · ${escapeHtml(chapter.story.titleKo)}</p>
-                ${choice ? `<p class="record-choice">${choice.byVoice ? "🎤 말로" : "👆 골라서"} “${escapeHtml(choice.ko)}”</p>` : ""}
+                ${choice ? `<p class="record-choice">${choice.byVoice ? "말로" : "골라서"} “${escapeHtml(choice.ko)}”</p>` : ""}
                 ${chapter.story.parentNoteKo ? `<p class="record-note">${escapeHtml(chapter.story.parentNoteKo)}</p>` : ""}
               </li>`;
             })
@@ -1086,7 +1350,7 @@ function recurringWordCardHtml(word) {
   const micButton =
     voiceSupported() && practice.feedback !== "done"
       ? `<button type="button" class="voice-button ${practice.listening ? "listening" : ""}" data-action="word-repeat" data-word="${escapeHtml(word.en)}">${
-          practice.listening ? "듣고 있어요…" : "🎤 따라 말하기"
+          practice.listening ? "듣고 있어요…" : `${iconImg("speak")}따라 말하기`
         }</button>`
       : "";
   let feedback = "";
@@ -1096,11 +1360,11 @@ function recurringWordCardHtml(word) {
 
   return `
     <li class="recurring-word-card">
-      ${practiced ? `<span class="practice-stamp" aria-hidden="true">⭐</span>` : ""}
+      ${practiced ? `<span class="practice-stamp" aria-hidden="true">${iconImg("stamp")}</span>` : ""}
       <b>${escapeHtml(word.en)}</b>
       <span>${escapeHtml(word.ko)}</span>
       <div class="recurring-word-actions">
-        <button type="button" data-action="word-listen" data-word="${escapeHtml(word.en)}">🔊 듣기</button>
+        <button type="button" data-action="word-listen" data-word="${escapeHtml(word.en)}">${iconImg("listen")}듣기</button>
         ${micButton}
       </div>
       ${feedback}
@@ -1131,7 +1395,10 @@ function startWordRepeat(enWord) {
       if (state.book) {
         state.book = markPracticed(state.book, enWord);
         const storage = browserStorage();
-        if (storage) saveBook(storage, state.book);
+        if (storage) {
+          saveBook(storage, state.book);
+          syncLibrary(storage);
+        }
       }
     } else {
       const attempts = before.attempts + 1;
@@ -1181,7 +1448,7 @@ function spreadContentHtml(book, spread, { first, last, complete, words, charact
         <h2>${escapeHtml(book.language === "en" ? first.story.titleEn : first.story.titleKo)}</h2>
         ${book.language === "both" ? `<p class="english-line">${escapeHtml(first.story.titleEn)}</p>` : ""}
         <p class="book-author">지은이 · ${book.origin ? `${escapeHtml(book.origin.authorName)} + ${escapeHtml(book.nickname)}` : escapeHtml(book.nickname)}</p>
-        ${book.origin ? `<p class="book-origin-note">🤝 친구 이야기를 이어서 함께 지었어요</p>` : ""}
+        ${book.origin ? `<p class="book-origin-note">친구 이야기를 이어서 함께 지었어요</p>` : ""}
       </div>`;
   } else if (spread.kind === "page") {
     const chapter = book.chapters[spread.chapter];
@@ -1238,7 +1505,7 @@ function spreadContentHtml(book, spread, { first, last, complete, words, charact
           ${
             book.chapters.some((c) => c.story.choice)
               ? `<div><dt>${escapeHtml(withParticle(book.nickname, "이가", "가"))} 정한 장면</dt><dd><ul class="choice-list">${book.chapters
-                  .map((c, i) => (c.story.choice ? `<li>${i + 1}편 · ${c.story.choice.byVoice ? "🎤 말로" : "👆 골라서"} "${escapeHtml(c.story.choice.ko)}"</li>` : ""))
+                  .map((c, i) => (c.story.choice ? `<li>${i + 1}편 · ${c.story.choice.byVoice ? "말로" : "골라서"} "${escapeHtml(c.story.choice.ko)}"</li>` : ""))
                   .join("")}</ul></dd></div>`
               : ""
           }
@@ -1282,7 +1549,8 @@ function bookViewHtml() {
       <div class="book-toolbar-wizard">
         <strong>${index + 1} / ${spreads.length}</strong>
         <div>
-          <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
+          <button type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
+          <button type="button" data-action="print-book">${iconImg("print")}인쇄·PDF 저장</button>
           <button type="button" data-action="new-book">새 책 시작</button>
         </div>
       </div>
@@ -1415,7 +1683,6 @@ function startChoosing() {
   state.choiceSelection = null;
   state.ownText = "";
   state.ownByVoice = false;
-  state.typing = false;
   state.voiceError = "";
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1455,6 +1722,7 @@ async function finishChapter() {
   state.book = next;
   const storage = browserStorage();
   const result = storage ? saveBook(storage, next) : { ok: false, message: "이 브라우저에서는 책을 보관할 수 없어요." };
+  if (result.ok) syncLibrary(storage);
   state.busy = false;
   go("offline");
   if (!result.ok) setError(result.message);
@@ -1500,10 +1768,10 @@ async function startFriendBook(seed) {
     const storage = browserStorage();
     const result = storage ? saveBook(storage, friendBook) : { ok: true };
     state.book = friendBook;
+    if (result.ok) syncLibrary(storage);
     resetDrawing();
-    state.stage = "upload";
     state.busy = false;
-    render();
+    go("upload");
     if (!result.ok) setError(result.message);
   } catch (caught) {
     state.busy = false;
@@ -1524,8 +1792,7 @@ function startNewBook() {
   state.book = null;
   resetDrawing();
   state.error = "";
-  state.stage = "upload";
-  render();
+  go("upload");
 }
 
 let recognitionRef = null;
@@ -1543,7 +1810,6 @@ function startVoice() {
       state.voiceError = "";
       state.ownText = transcript;
       state.ownByVoice = true;
-      state.typing = false;
       state.choiceSelection = { kind: "own" };
       render();
       speak(`${transcript}. 이렇게 말했어요. 맞아요?`, "ko-KR");
@@ -1580,16 +1846,45 @@ function onAction(event) {
   const action = el.dataset.action;
 
   switch (action) {
+    case "go-home":
+      go("home");
+      break;
+    case "start-upload":
+      go("upload");
+      break;
+    case "go-shelf":
+      state.bookIndex = 0;
+      syncLibrary();
+      go("shelf");
+      break;
+    case "set-shelf-view":
+      state.shelfView = el.dataset.view === "list" ? "list" : "album";
+      render();
+      break;
+    case "set-shelf-sort":
+      state.shelfSort = el.dataset.sort === "oldest" ? "oldest" : "newest";
+      render();
+      break;
+    case "select-book": {
+      const book = shelfBooks().find((item) => item.id === el.dataset.bookId);
+      if (book) {
+        activateBook(book);
+        render();
+      }
+      break;
+    }
     case "use-sample":
       useSample();
       break;
     case "go-friends":
       go("friends");
       break;
-    case "back-to-upload":
-      go("upload");
+    case "preview-friend": {
+      state.selectedSeedId = el.dataset.seedId || "";
+      go("relayRead");
       break;
-    case "pick-friend": {
+    }
+    case "start-friend-relay": {
       const seed = seedBooks.find((s) => s.id === el.dataset.seedId);
       if (seed) startFriendBook(seed);
       break;
@@ -1628,14 +1923,6 @@ function onAction(event) {
       else speak(card.ko, "ko-KR");
       break;
     }
-    case "toggle-typing":
-      state.typing = !state.typing;
-      render();
-      break;
-    case "edit-own":
-      state.typing = true;
-      render();
-      break;
     case "voice-start":
       startVoice();
       break;

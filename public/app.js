@@ -1,91 +1,175 @@
-const form = document.querySelector("#story-form");
-const imageInput = document.querySelector("#image");
-const preview = document.querySelector("#preview");
-const dropCopy = document.querySelector("#drop-copy");
-const emptyState = document.querySelector("#empty-state");
-const loading = document.querySelector("#loading");
-const book = document.querySelector("#book");
-const pageLabel = document.querySelector("#page-label");
-const storyTitle = document.querySelector("#story-title");
-const bookPage = document.querySelector("#book-page");
-const storybookScene = document.querySelector("#storybook-scene");
-const generatedPageArt = document.querySelector("#generated-page-art");
-const pageArt = document.querySelector("#page-art");
-const moodBadge = document.querySelector("#mood-badge");
-const characterLine = document.querySelector("#character-line");
-const pageKo = document.querySelector("#page-ko");
-const pageEn = document.querySelector("#page-en");
-const storyNote = document.querySelector("#story-note");
-const promptList = document.querySelector("#prompt-list");
-const wordList = document.querySelector("#word-list");
-const prevPage = document.querySelector("#prev-page");
-const nextPage = document.querySelector("#next-page");
-const toggleEnglish = document.querySelector("#toggle-english");
-const printBook = document.querySelector("#print-book");
+// 그림이야기 - 5단계 아이 주도 흐름 (그림 올리기 → 부모 확인 → 언어 고르기 → 이야기 보기 → 다시 그리기)
+// public/shared의 공용 모듈을 브라우저에서 그대로 import한다.
 
-let currentStory = null;
-let currentPage = 0;
-let uploadedImageDataUrl = "";
-let characterCutoutDataUrl = "";
-let characterIdentity = "";
-let characterName = "";
+import { withParticle } from "./shared/korean.js";
+import { transitionStage } from "./shared/wizard.js";
+import { combineStory } from "./shared/story-normalize.js";
+import { demoSampleImagePath } from "./shared/demo-data.js";
+import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "./shared/book-storage.js";
+import { seedBooks } from "./shared/seed-books.js";
+import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.js";
+import { getCharacterBox, getPageFraming } from "./shared/page-composition.js";
 
-const moods = ["짜잔!", "와!", "?", "좋아!", "다음?"];
+const root = document.querySelector("#app-root");
+
+const stageOrder = ["upload", "review", "language", "story", "offline"];
+const stageLabels = {
+  upload: "그림 올리기",
+  review: "부모 확인",
+  language: "언어 고르기",
+  story: "이야기 보기",
+  offline: "다시 그리기",
+  book: "동화책",
+  friends: "친구 이야기"
+};
+const backTarget = { review: "upload", language: "review", story: "language" };
 const sceneClasses = ["scene-dino", "scene-magic", "scene-sea", "scene-night"];
 
-const compositionDefaults = [
-  { framing: "close", textSide: "right", left: "30%", bottom: "6%", width: "58%", height: "76%" },
-  { framing: "wide", textSide: "right", left: "18%", bottom: "5%", width: "30%", height: "46%" },
-  { framing: "medium", textSide: "left", left: "58%", bottom: "7%", width: "43%", height: "58%" },
-  { framing: "wide", textSide: "left", left: "68%", bottom: "5%", width: "28%", height: "44%" }
-];
-
-function getComposition(page, index) {
-  const fallback = compositionDefaults[index % compositionDefaults.length];
-  const framing = ["close", "medium", "wide"].includes(page.framing) ? page.framing : fallback.framing;
-  const textSide = page.textSide === "left" || page.textSide === "right" ? page.textSide : fallback.textSide;
-  const byFraming = {
-    close: { left: textSide === "left" ? "68%" : "30%", bottom: "5%", width: "58%", height: "78%" },
-    medium: { left: textSide === "left" ? "60%" : "32%", bottom: "7%", width: "44%", height: "60%" },
-    wide: { left: textSide === "left" ? "70%" : "17%", bottom: "5%", width: "29%", height: "45%" }
-  };
-  return { framing, textSide, ...(byFraming[framing] || fallback) };
+function browserStorage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
-function getSelected(group) {
-  return document.querySelector(`[data-name="${group}"] .selected`)?.dataset.value;
-}
+/** @type {any} */
+const state = {
+  stage: "upload",
+  nickname: "수민",
+  age: 7,
+  imageDataUrl: "",
+  imageName: "",
+  privacyChecked: false,
+  analysis: null,
+  language: "both",
+  opening: null,
+  choosing: false,
+  choiceSelection: null, // { kind: "card", index } | { kind: "own" }
+  ownText: "",
+  ownByVoice: false,
+  voiceError: "",
+  typing: false,
+  story: null,
+  pageIndex: 0,
+  busy: false,
+  error: "",
+  demoMode: false,
+  finished: false,
+  book: null,
+  characterCutoutDataUrl: "",
+  pageArt: {}, // pageIndex -> { imageDataUrl, framing, textSide }
+  bookIndex: 0
+};
 
-function bindChoiceButtons(selector) {
-  document.querySelectorAll(selector).forEach((button) => {
-    button.addEventListener("click", () => {
-      const group = button.parentElement;
-      group.querySelectorAll("button").forEach((item) => item.classList.remove("selected"));
-      button.classList.add("selected");
-    });
-  });
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      resolve("");
-      return;
+(function init() {
+  const storage = browserStorage();
+  const saved = storage ? loadBook(storage) : null;
+  if (saved) {
+    state.book = saved;
+    if (!isBookFull(saved)) {
+      state.nickname = saved.nickname;
+      state.age = saved.age;
+      state.language = saved.language;
     }
+  }
+  render();
+})();
+
+function bookFull() {
+  return isBookFull(state.book);
+}
+function continuing() {
+  return Boolean(state.book && state.book.chapters.length > 0 && !bookFull());
+}
+function chapterNumber() {
+  return continuing() ? state.book.chapters.length + 1 : 1;
+}
+
+function go(next) {
+  state.error = "";
+  state.stage = transitionStage(state.stage, next);
+  render();
+}
+
+function setError(message) {
+  state.error = message || "";
+  render();
+}
+
+function speak(text, locale) {
+  if (!("speechSynthesis" in window)) {
+    setError("이 브라우저는 문장 듣기를 지원하지 않아요.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = locale;
+  utterance.rate = 0.85;
+  window.speechSynthesis.speak(utterance);
+}
+
+/* ---------------------------- 파일/그림 처리 ---------------------------- */
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("그림 파일을 읽지 못했어요."));
     reader.readAsDataURL(file);
   });
 }
 
+function sampleToPng(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("예제 그림을 준비하지 못했어요."));
+        return;
+      }
+      context.drawImage(image, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    image.onerror = () => reject(new Error("예제 그림을 불러오지 못했어요."));
+    image.src = src;
+  });
+}
+
+function shrinkImage(dataUrl, maxSide = 1280) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.naturalWidth * scale);
+      canvas.height = Math.round(image.naturalHeight * scale);
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+// 팀원 코드 유지: 흰 종이 배경을 지우고 아이 그림(주인공)만 오려낸다.
 function extractCharacter(dataUrl) {
   return new Promise((resolve) => {
     if (!dataUrl) {
       resolve("");
       return;
     }
-
     const image = new Image();
     image.onload = () => {
       const maxSide = 900;
@@ -109,7 +193,8 @@ function extractCharacter(dataUrl) {
           const r = data[index];
           const g = data[index + 1];
           const b = data[index + 2];
-          const isPaper = r > 218 && g > 218 && b > 205 && Math.abs(r - g) < 28 && Math.abs(g - b) < 36;
+          // 위험 완화: 종이·그림자·격자무늬가 남는 사례가 있어 기준값을 조금 더 느슨하게 잡는다.
+          const isPaper = r > 210 && g > 210 && b > 195 && Math.abs(r - g) < 30 && Math.abs(g - b) < 40;
           if (isPaper) {
             data[index + 3] = 0;
           } else if (data[index + 3] > 20) {
@@ -124,6 +209,7 @@ function extractCharacter(dataUrl) {
       ctx.putImageData(imageData, 0, 0);
 
       if (minX >= maxX || minY >= maxY) {
+        // 오려내기에 실패하면 원본 그림을 그대로 쓴다.
         resolve(dataUrl);
         return;
       }
@@ -144,146 +230,1133 @@ function extractCharacter(dataUrl) {
   });
 }
 
-function setBusy(isBusy) {
-  form.querySelector(".submit").disabled = isBusy;
-  emptyState.hidden = true;
-  loading.hidden = !isBusy;
-  book.hidden = true;
-  if (isBusy) {
-    loading.querySelector("p").textContent = "동화 글과 그림책 삽화를 만들고 있어요. 최대 1분 정도 걸릴 수 있어요...";
-  }
+/* ---------------------------- API 호출 ---------------------------- */
+
+async function apiPost(path, payload) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "요청을 처리하지 못했어요.");
+  return data;
 }
 
-function renderStory() {
-  if (!currentStory) return;
-  const pages = currentStory.pages || [];
-  const totalPages = pages.length;
-  const storyPage = pages[currentPage] || { ko: "", en: "" };
-  const characterLabel = [characterName, characterIdentity].filter(Boolean).join(" · ") || "아이 그림 주인공";
-  const scene = sceneClasses[currentPage % sceneClasses.length];
-  const composition = getComposition(storyPage, currentPage);
-
-  storyTitle.textContent = currentStory.title || "매직북";
-  pageLabel.textContent = `${currentPage + 1} / ${totalPages}`;
-  pageKo.textContent = storyPage.ko;
-  pageEn.textContent = storyPage.en;
-  characterLine.textContent = `아이 그림 기반 생성 · ${characterLabel}`;
-  storyNote.textContent = currentStory.note || "";
-  storyNote.hidden = !currentStory.note;
-  prevPage.disabled = currentPage === 0;
-  nextPage.disabled = currentPage === totalPages - 1;
-  if (storyPage.imageDataUrl) {
-    generatedPageArt.src = storyPage.imageDataUrl;
-  } else {
-    generatedPageArt.removeAttribute("src");
-  }
-  bookPage.classList.toggle("has-generated-art", Boolean(storyPage.imageDataUrl));
-  storybookScene.hidden = !characterCutoutDataUrl && !storyPage.imageDataUrl;
-  if (characterCutoutDataUrl) {
-    pageArt.src = characterCutoutDataUrl;
-  } else {
-    pageArt.removeAttribute("src");
-  }
-  pageArt.style.setProperty("--character-left", composition.left);
-  pageArt.style.setProperty("--character-bottom", composition.bottom);
-  pageArt.style.setProperty("--character-width", composition.width);
-  pageArt.style.setProperty("--character-height", composition.height);
-  pageArt.style.setProperty("--character-tilt", `${[-3, 2, -1, 3][currentPage % 4]}deg`);
-  moodBadge.textContent = moods[currentPage % moods.length];
-  moodBadge.hidden = true;
-  bookPage.classList.remove(...sceneClasses);
-  bookPage.classList.add(scene);
-  storybookScene.classList.remove("framing-close", "framing-medium", "framing-wide", "text-left", "text-right");
-  storybookScene.classList.add(`framing-${composition.framing}`, `text-${composition.textSide}`);
-
-  promptList.innerHTML = "";
-  (currentStory.prompts || []).forEach((prompt) => {
-    const item = document.createElement("li");
-    item.textContent = prompt;
-    promptList.append(item);
-  });
-
-  wordList.innerHTML = "";
-  (currentStory.englishWords || []).forEach((entry) => {
-    const item = document.createElement("span");
-    item.className = "word";
-    item.textContent = `${entry.word} · ${entry.meaning}`;
-    wordList.append(item);
-  });
+function storyRequestBase() {
+  return {
+    analysis: state.analysis,
+    nickname: state.nickname.trim(),
+    age: state.age,
+    previousChapters:
+      continuing() && state.book
+        ? state.book.chapters.map((chapter) => ({ titleKo: chapter.story.titleKo, summaryKo: chapter.story.summaryKo }))
+        : []
+  };
 }
 
-imageInput.addEventListener("change", async () => {
-  const file = imageInput.files?.[0];
-  if (!file) return;
-  const dataUrl = await fileToDataUrl(file);
-  preview.src = dataUrl;
-  preview.style.display = "block";
-  dropCopy.style.display = "none";
-});
-
-bindChoiceButtons(".chip");
-bindChoiceButtons(".segment");
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setBusy(true);
-
+/** 보고 있는 쪽만 삽화를 만든다. 실패하면 조용히 빈 값으로 남아 오려낸 주인공만 보인다. */
+async function ensurePageArt(index) {
+  if (!state.story && !state.opening) return;
+  if (state.pageArt[index]) return;
+  const pages = state.story ? state.story.pages : state.opening.pages;
+  const page = pages[index];
+  if (!page) return;
+  const titleKo = state.story ? state.story.titleKo : state.opening.titleKo;
+  state.pageArt[index] = { loading: true };
   try {
-    const imageDataUrl = await fileToDataUrl(imageInput.files?.[0]);
-    uploadedImageDataUrl = imageDataUrl;
-    characterCutoutDataUrl = await extractCharacter(imageDataUrl);
-    characterIdentity = document.querySelector("#character-identity").value.trim();
-    characterName = document.querySelector("#character-name").value.trim();
-    const payload = {
-      imageDataUrl,
-      childName: document.querySelector("#child-name").value.trim(),
-      age: document.querySelector("#age").value,
-      characterIdentity,
-      characterName,
-      characterDetails: document.querySelector("#character-details").value.trim(),
-      diaryText: document.querySelector("#diary-text").value.trim(),
-      theme: getSelected("theme"),
-      mode: getSelected("mode")
-    };
+    const data = await apiPost("/api/page-art", {
+      nickname: state.nickname.trim(),
+      analysis: state.analysis,
+      page,
+      pageIndex: index,
+      titleKo
+    });
+    state.pageArt[index] = { imageDataUrl: data.imageDataUrl || "", framing: data.framing, textSide: data.textSide };
+  } catch {
+    state.pageArt[index] = { imageDataUrl: "" };
+  }
+  renderStoryImageOnly();
+}
 
-    const response = await fetch("/api/generate-story", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
+/* ---------------------------- 렌더링 ---------------------------- */
+
+function render() {
+  root.innerHTML = `
+    ${state.stage === "upload" && !state.book ? heroHtml() : ""}
+    <div class="studio-shell stage-${state.stage}">
+      ${state.stage === "upload" && state.book ? bookBannerHtml() : ""}
+      ${state.stage !== "book" && state.stage !== "friends" ? stepperHtml() : ""}
+      <section class="studio-card">
+        ${stageContentHtml()}
+      </section>
+      <footer class="app-footer">그림이야기는 아이를 화면에 더 오래 머물게 하지 않아요.</footer>
+    </div>
+  `;
+  bindEvents();
+  if (state.stage === "story" && !state.choosing) {
+    const activePage = state.story ? state.pageIndex - OPENING_PAGES : state.pageIndex;
+    ensurePageArt(state.pageIndex);
+    // 다음 쪽은 한 장만 앞서 만든다(시연이 늘어지지 않도록).
+    const pages = state.story ? state.story.pages : state.opening.pages;
+    if (state.pageIndex + 1 < pages.length) ensurePageArt(state.pageIndex + 1);
+  }
+}
+
+function renderStoryImageOnly() {
+  // 이미지 비동기 로드 결과만 반영하려고 전체를 다시 그린다(간단함 우선).
+  if (state.stage === "story" && !state.choosing) render();
+}
+
+function heroHtml() {
+  return `
+    <section class="hero" id="hero-banner" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">그림일기 → 한국어·영어 동화</p>
+        <h1 id="hero-title">아이 그림이<br />동화가 되는 순간</h1>
+        <p class="lead">그림일기를 올리면 AI가 아이의 상상을 4페이지 동화와 쉬운 영어 이야기로 열어줘요.</p>
+      </div>
+      <div class="hero-preview" aria-hidden="true">
+        <div class="paper paper-one"></div>
+        <div class="paper paper-two"></div>
+        <div class="paper paper-three">
+          <span></span>
+          <strong>Once upon a time</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function bookBannerHtml() {
+  const book = state.book;
+  return `
+    <section class="book-banner">
+      <div>
+        <p class="eyebrow">${bookFull() ? "완성된 동화책이 있어요" : `${chapterNumber()}편 이어 그리기`}</p>
+        <b>📖 ${escapeHtml(book.chapters[0]?.story.titleKo || "")} · ${book.chapters.length}/${MAX_CHAPTERS}편</b>
+        <small>${
+          bookFull()
+            ? "새 그림을 올리면 새 책이 시작돼요. 지금 책은 먼저 인쇄해두세요."
+            : `지난 이야기: ${escapeHtml(book.chapters.at(-1)?.story.summaryKo || "")}`
+        }</small>
+      </div>
+      <div class="book-banner-actions">
+        <button type="button" data-action="view-book">책 보기</button>
+        <button type="button" data-action="new-book">새 책 시작</button>
+      </div>
+    </section>
+  `;
+}
+
+function stepperHtml() {
+  const activeStep = stageOrder.indexOf(state.stage);
+  return `
+    <p class="step-count">${activeStep + 1} / ${stageOrder.length}</p>
+    <nav class="stepper" aria-label="이야기 만들기 진행 단계">
+      ${stageOrder
+        .map(
+          (item, index) => `
+        <div class="step-dot ${index <= activeStep ? "active" : ""}">
+          <span>${index + 1}</span>
+          <small>${stageLabels[item]}</small>
+        </div>`
+        )
+        .join("")}
+    </nav>
+  `;
+}
+
+function stageContentHtml() {
+  const backBtn =
+    state.stage !== "upload" && state.stage !== "offline" && !state.choosing && backTarget[state.stage]
+      ? `<button class="back-button" type="button" data-action="back" data-target="${backTarget[state.stage]}">← 이전</button>`
+      : "";
+  const demoBadge = state.demoMode ? `<p class="demo-badge">✦ API 키 없이 실행 중인 안전한 발표 데모예요.</p>` : "";
+  const errorMsg = state.error ? `<p class="error-message" role="alert">${escapeHtml(state.error)}</p>` : "";
+
+  let body = "";
+  if (state.stage === "upload") body = uploadHtml();
+  else if (state.stage === "friends") body = friendsHtml();
+  else if (state.stage === "review") body = reviewHtml();
+  else if (state.stage === "language") body = languageHtml();
+  else if (state.stage === "story") body = state.choosing ? choiceHtml() : storyHtml();
+  else if (state.stage === "offline") body = offlineHtml();
+  else if (state.stage === "book") body = bookViewHtml();
+
+  return `${backBtn}${demoBadge}${errorMsg}${body}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+/* -------- 1단계: 그림 올리기 -------- */
+
+function uploadHtml() {
+  const heading = continuing() ? "다음 장면 그림을 올려주세요" : "오늘의 그림일기를 올려주세요";
+  const desc = continuing() ? "AI가 지난 이야기에 이어서 새 편을 써요." : "그림과 손글씨를 AI가 함께 읽어요.";
+  return `
+    <form class="stage-panel" id="upload-form">
+      <div class="stage-heading">
+        <p class="eyebrow">부모님과 함께 시작해요</p>
+        <h2>${heading}</h2>
+        <p>${desc}</p>
+      </div>
+
+      <label class="upload-box ${state.imageDataUrl ? "has-image" : ""}">
+        <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp" />
+        ${
+          state.imageDataUrl
+            ? `<img src="${state.imageDataUrl}" alt="올린 그림일기 미리보기" />`
+            : `<span><b>📷 그림일기 사진 선택</b><small>JPG, PNG, WebP · 최대 8MB</small></span>`
+        }
+      </label>
+      ${state.imageName ? `<p class="file-name">${escapeHtml(state.imageName)}</p>` : ""}
+      <button class="text-button" type="button" data-action="use-sample">사진이 없나요? 예제로 시작하기</button>
+      ${
+        !state.book
+          ? `<button class="friend-entry" type="button" data-action="go-friends">
+              <span aria-hidden="true">🤝</span>
+              <b>친구가 쓰다 만 이야기, 내가 완성해볼까?</b>
+              <small>친구 이야기를 읽고 다음 장면을 그리면 함께 지은 책이 돼요</small>
+            </button>`
+          : ""
+      }
+
+      <div class="two-fields">
+        <label>
+          <span>아이 별명</span>
+          <input id="nickname-input" maxlength="12" value="${escapeHtml(state.nickname)}" placeholder="예: 수민" />
+        </label>
+        <label>
+          <span>나이</span>
+          <select id="age-input">
+            ${[5, 6, 7, 8, 9, 10, 11, 12].map((v) => `<option value="${v}" ${v === state.age ? "selected" : ""}>${v}세</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      <div class="trust-box">
+        <label class="privacy-check">
+          <input type="checkbox" id="privacy-input" ${state.privacyChecked ? "checked" : ""} />
+          <span>얼굴·학교명·주소·연락처가 보이지 않는 그림인지 확인했어요.</span>
+        </label>
+        <p class="privacy-note">서버에는 저장하지 않아요. 만든 책은 이 기기 브라우저에만 보관되고 언제든 지울 수 있어요.</p>
+      </div>
+
+      <button class="primary-button" type="submit" ${canSubmitUpload() ? "" : "disabled"} ${state.busy ? "disabled" : ""}>
+        ${state.busy ? "그림 속 이야기를 찾고 있어요…" : "이야기 시작하기 →"}
+      </button>
+    </form>
+  `;
+}
+
+function canSubmitUpload() {
+  return Boolean(state.imageDataUrl && state.nickname.trim() && state.age >= 5 && state.age <= 12 && state.privacyChecked);
+}
+
+/* -------- 친구 이야기 고르기 -------- */
+
+function friendsHtml() {
+  return `
+    <div class="stage-panel friend-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">🤝</span>
+        <p class="eyebrow">친구가 쓰다 만 이야기</p>
+        <h2>내가 이어서 완성해볼까?</h2>
+        <p>친구가 남긴 이야기를 읽고, 다음 장면을 그려서 함께 책을 완성해요.</p>
+      </div>
+      <p class="seed-note">🛈 지금 보이는 이야기는 그림이야기 팀이 만든 예시예요.</p>
+      <div class="seed-list">
+        ${seedBooks
+          .map(
+            (seed) => `
+          <article class="seed-card">
+            <div class="seed-art">
+              <img src="${seed.chapters[0].imagePath}" alt="${escapeHtml(seed.authorName)}의 그림" />
+              <span class="seed-emoji" aria-hidden="true">${seed.emoji}</span>
+            </div>
+            <div class="seed-body">
+              <p class="eyebrow">${escapeHtml(seed.authorName)}(${seed.authorAge}세)가 ${seed.chapters.length}편까지 썼어요</p>
+              <h3>${escapeHtml(seed.chapters[0].story.titleKo)}</h3>
+              <p class="seed-hook">${escapeHtml(seed.hook)}</p>
+              <details>
+                <summary>지금까지의 이야기 읽기</summary>
+                <ol>
+                  ${seed.chapters
+                    .map((chapter) => `<li><b>${escapeHtml(chapter.story.titleKo)}</b><span>${escapeHtml(chapter.story.summaryKo)}</span></li>`)
+                    .join("")}
+                </ol>
+              </details>
+              <button class="primary-button" type="button" data-action="pick-friend" data-seed-id="${seed.id}" ${state.busy ? "disabled" : ""}>
+                ${state.busy ? "이야기를 가져오는 중…" : `내가 ${seed.chapters.length + 1}편 그릴래 →`}
+              </button>
+              <small>남은 편: ${MAX_CHAPTERS - seed.chapters.length}편</small>
+            </div>
+          </article>
+        `
+          )
+          .join("")}
+      </div>
+      <button class="text-button" type="button" data-action="back-to-upload">내 그림으로 새 이야기 시작하기</button>
+    </div>
+  `;
+}
+
+/* -------- 2단계: 부모 확인 -------- */
+
+function reviewHtml() {
+  const a = state.analysis;
+  if (!a) return "";
+  return `
+    <div class="stage-panel compact-panel trust-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">🔎</span>
+        <p class="eyebrow">AI가 이렇게 이해했어요</p>
+        <h2>이야기를 만들기 전에<br />부모님이 한 번 확인해주세요.</h2>
+      </div>
+      ${
+        continuing() && state.book
+          ? `<p class="previous-summary"><b>지난 이야기</b>${escapeHtml(state.book.chapters.at(-1)?.story.summaryKo || "")}</p>`
+          : ""
+      }
+      <div class="review-grid">
+        <label><span>등장인물</span><input id="field-characters" value="${escapeHtml(a.characters.join(", "))}" /></label>
+        <label><span>장소</span><input id="field-place" value="${escapeHtml(a.place)}" /></label>
+        <label><span>사물</span><input id="field-objects" value="${escapeHtml(a.objects.join(", "))}" /></label>
+        <label><span>분위기</span><input id="field-mood" value="${escapeHtml(a.mood)}" /></label>
+        <label class="wide-field"><span>그림일기 글</span><textarea id="field-diary" rows="4">${escapeHtml(a.diaryText)}</textarea></label>
+      </div>
+      <p class="helper-copy">손글씨를 잘못 읽은 부분만 편하게 고쳐주세요.</p>
+      <button class="primary-button" type="button" data-action="to-language">맞아요, 다음 →</button>
+    </div>
+  `;
+}
+
+function readReviewFields() {
+  const characters = document.querySelector("#field-characters");
+  const place = document.querySelector("#field-place");
+  const objects = document.querySelector("#field-objects");
+  const mood = document.querySelector("#field-mood");
+  const diary = document.querySelector("#field-diary");
+  if (!characters) return;
+  state.analysis = {
+    characters: characters.value.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 5),
+    place: place.value.trim(),
+    objects: objects.value.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 5),
+    mood: mood.value.trim(),
+    diaryText: diary.value.trim()
+  };
+}
+
+/* -------- 3단계: 언어 고르기 -------- */
+
+function languageHtml() {
+  const options = [
+    { value: "ko", emoji: "🇰🇷", title: "한국어로 읽기", desc: "한국어 이야기와 단어" },
+    { value: "en", emoji: "🇺🇸", title: "Read in English", desc: "Easy English story and words" },
+    { value: "both", emoji: "🌈", title: "한국어 + English", desc: "같은 이야기를 두 언어로" }
+  ];
+  return `
+    <div class="stage-panel compact-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">🌏</span>
+        <p class="eyebrow">편한 언어로 이해하고 배우는 언어로 다시 만나요</p>
+        <h2>어떻게 읽어볼까요?</h2>
+      </div>
+      <div class="language-options">
+        ${options
+          .map(
+            (opt) => `
+          <button type="button" class="${state.language === opt.value ? "selected" : ""}" data-action="set-language" data-value="${opt.value}">
+            <span>${opt.emoji}</span><b>${opt.title}</b><small>${opt.desc}</small>
+          </button>`
+          )
+          .join("")}
+      </div>
+      <button class="primary-button" type="button" data-action="generate-story" ${state.busy ? "disabled" : ""}>
+        ${state.busy ? "이야기의 시작을 만드는 중이에요…" : continuing() ? `${chapterNumber()}편 이어서 만들기 →` : "내 그림 이야기 만들기 →"}
+      </button>
+    </div>
+  `;
+}
+
+/* -------- 4단계: 이야기 보기 -------- */
+
+function currentComposition(index) {
+  const cached = state.pageArt[index];
+  const { framing, textSide } = cached && cached.framing ? cached : getPageFraming(index);
+  return { framing, textSide, ...getCharacterBox(framing, textSide) };
+}
+
+function storybookSceneHtml(page, index) {
+  const art = state.pageArt[index];
+  const imageDataUrl = art && art.imageDataUrl ? art.imageDataUrl : "";
+  const composition = currentComposition(index);
+  const scene = sceneClasses[index % sceneClasses.length];
+  const tilt = [-3, 2, -1, 3][index % 4];
+  return `
+    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""}">
+      <div class="storybook-scene framing-${composition.framing} text-${composition.textSide}">
+        ${imageDataUrl ? `<img id="generated-page-art" src="${imageDataUrl}" alt="생성된 동화책 삽화" />` : ""}
+        <div class="scene-sky"></div>
+        <div class="scene-sun"></div>
+        <div class="scene-cloud cloud-one"></div>
+        <div class="scene-cloud cloud-two"></div>
+        <div class="scene-prop prop-one"></div>
+        <div class="scene-prop prop-two"></div>
+        <div class="character-ground" aria-hidden="true"></div>
+        ${
+          state.characterCutoutDataUrl
+            ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
+            : ""
+        }
+        <div class="scene-foreground" aria-hidden="true"></div>
+        <div class="page-copy">
+          ${state.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
+          ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function storyHtml() {
+  const storyPages = state.story ? state.story.pages : state.opening ? state.opening.pages : [];
+  const currentPage = storyPages[state.pageIndex];
+  const storyTitle = state.story || state.opening;
+  if (!storyTitle || !currentPage) return "";
+
+  const listenButtons = `
+    <div class="listen-row">
+      ${state.language !== "en" ? `<button type="button" data-action="listen-ko">🔊 한국어 듣기</button>` : ""}
+      ${state.language !== "ko" ? `<button type="button" data-action="listen-en">🔊 English</button>` : ""}
+    </div>
+  `;
+  const wordRow = `
+    <div class="word-row">
+      ${(currentPage.words || []).map((w) => `<span>${escapeHtml(w.ko)} · ${escapeHtml(w.en)}</span>`).join("")}
+    </div>
+  `;
+
+  let navHtml = "";
+  if (state.pageIndex < storyPages.length - 1) {
+    navHtml = `<button class="primary-inline" type="button" data-action="story-next">다음 장 →</button>`;
+  } else if (!state.story) {
+    navHtml = `<button class="primary-inline" type="button" data-action="start-choosing">다음은 ${escapeHtml(state.nickname)}의 차례 →</button>`;
+  } else {
+    navHtml = `<button class="primary-inline" type="button" data-action="finish-chapter" ${state.busy ? "disabled" : ""}>${
+      state.busy ? "책에 담는 중…" : "책에 담고 다음으로 →"
+    }</button>`;
+  }
+
+  return `
+    <div class="story-stage">
+      <div class="story-topline">
+        <div>
+          <p class="eyebrow">${chapterNumber() > 1 ? `${chapterNumber()}편 · 이어지는 이야기` : "내 그림이 살아나는 이야기"}</p>
+          <h2>${escapeHtml(state.language === "en" ? storyTitle.titleEn : storyTitle.titleKo)}</h2>
+        </div>
+        <strong>${state.pageIndex + 1} / ${STORY_PAGES}</strong>
+      </div>
+      ${storybookSceneHtml(currentPage, state.pageIndex)}
+      <div class="story-copy" style="position:relative;">
+        ${
+          state.story && state.story.choice && state.pageIndex === OPENING_PAGES
+            ? `<span class="choice-badge">${state.story.choice.byVoice ? "🎤" : "👆"} ${escapeHtml(state.nickname)}의 선택 · ${escapeHtml(state.story.choice.ko)}</span>`
+            : ""
+        }
+        ${listenButtons}
+        ${wordRow}
+      </div>
+      <div class="story-nav">
+        <button type="button" data-action="story-prev" ${state.pageIndex === 0 ? "disabled" : ""}>← 이전 장</button>
+        ${navHtml}
+      </div>
+    </div>
+  `;
+}
+
+/* -------- 갈림길 -------- */
+
+function choiceHtml() {
+  const opening = state.opening;
+  if (!opening) return "";
+  const question = state.language === "en" ? opening.questionEn || opening.questionKo : opening.questionKo;
+  const englishLine = state.language === "both" && opening.questionEn ? `<p class="english-line">${escapeHtml(opening.questionEn)}</p>` : "";
+  const ownSelected = state.choiceSelection && state.choiceSelection.kind === "own" && state.ownText.trim();
+
+  return `
+    <button class="back-button" type="button" data-action="stop-choosing" ${state.busy ? "disabled" : ""}>← 이야기 다시 보기</button>
+    <div class="choice-panel">
+      <div class="stage-heading">
+        <span class="stage-emoji" aria-hidden="true">🤔</span>
+        <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례! 다음 장면을 정해요</p>
+        <h2>${escapeHtml(question)}</h2>
+        ${englishLine}
+        <button class="listen-question" type="button" data-action="ask-again">🔊 질문 다시 듣기</button>
+      </div>
+
+      <div class="choice-cards" role="radiogroup" aria-label="다음 장면 고르기">
+        ${opening.choices
+          .map((card, index) => {
+            const selected = state.choiceSelection && state.choiceSelection.kind === "card" && state.choiceSelection.index === index;
+            return `
+            <button type="button" role="radio" aria-checked="${selected}" class="choice-card ${selected ? "selected" : ""}" data-action="pick-card" data-index="${index}">
+              <span class="choice-emoji" aria-hidden="true">${card.emoji}</span>
+              ${state.language !== "en" ? `<b>${escapeHtml(card.ko)}</b>` : ""}
+              ${state.language !== "ko" ? `<small>${escapeHtml(card.en)}</small>` : ""}
+            </button>`;
+          })
+          .join("")}
+
+        <div class="choice-card own-card ${state.choiceSelection && state.choiceSelection.kind === "own" ? "selected" : ""}">
+          <span class="choice-emoji" aria-hidden="true">💡</span>
+          <b>내 생각이 있어요</b>
+          ${
+            voiceSupported()
+              ? `<button type="button" class="voice-button ${state.voiceListening ? "listening" : ""}" data-action="voice-start">${
+                  state.voiceListening ? "듣고 있어요…" : "🎤 말로 하기"
+                }</button>`
+              : ""
+          }
+          <button class="text-button" type="button" data-action="toggle-typing">${voiceSupported() ? "부모님이 대신 적기" : "✏️ 부모님이 적어주기"}</button>
+        </div>
+      </div>
+
+      ${state.voiceError ? `<p class="voice-error" role="alert">${escapeHtml(state.voiceError)}</p>` : ""}
+
+      ${
+        state.typing
+          ? `<label class="own-typing">
+              <span>아이가 말한 생각을 그대로 적어주세요</span>
+              <input id="own-text-input" maxlength="60" placeholder="예: 조개를 집에 데려가기" value="${escapeHtml(state.ownText)}" />
+            </label>`
+          : ""
+      }
+
+      ${
+        ownSelected && state.ownByVoice
+          ? `<div class="voice-confirm" role="status">
+              <p><small>이렇게 들었어요</small><b>"${escapeHtml(state.ownText)}"</b></p>
+              <div>
+                ${
+                  voiceSupported()
+                    ? `<button type="button" class="voice-button" data-action="voice-start">🔁 다시 말하기</button>`
+                    : ""
+                }
+                <button type="button" class="text-button" data-action="edit-own">틀렸으면 고쳐 적기</button>
+              </div>
+            </div>`
+          : ""
+      }
+
+      <button class="primary-button" type="button" data-action="confirm-choice" ${!state.choiceSelection || state.busy ? "disabled" : ""}>
+        ${state.busy ? "고른 장면으로 이야기를 이어 쓰는 중…" : state.choiceSelection ? "이걸로 할래! →" : "하나를 골라주세요"}
+      </button>
+    </div>
+  `;
+}
+
+function voiceSupported() {
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+/* -------- 5단계: 다시 그리기 -------- */
+
+function offlineHtml() {
+  const story = state.story;
+  if (!story) return "";
+  const full = bookFull();
+  return `
+    <div class="stage-panel offline-panel">
+      <span class="stage-emoji" aria-hidden="true">🎨</span>
+      <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례예요</p>
+      <h2>화면을 끌 시간이에요.</h2>
+      <div class="offline-question">
+        ${state.language !== "en" ? `<p>${escapeHtml(story.offlinePromptKo)}</p>` : ""}
+        ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(story.offlinePromptEn)}</p>` : ""}
+      </div>
+      ${
+        state.book && state.book.origin
+          ? `<p class="coauthor-line">${
+              full
+                ? `${escapeHtml(state.book.origin.authorName)}의 이야기를 ${escapeHtml(withParticle(state.nickname, "이가", "가"))} 완성했어요! 🎉`
+                : `${escapeHtml(state.book.origin.authorName)}의 이야기를 ${escapeHtml(withParticle(state.nickname, "이가", "가"))} 이어 갔어요!`
+            }</p>`
+          : ""
+      }
+      ${
+        state.book && !full
+          ? `
+        <div class="paper-prompt">
+          <span>✏️</span>
+          <b>다 그렸으면 사진을 올려 ${state.book.chapters.length + 1}편을 이어가요</b>
+          <small>지금까지 ${state.book.chapters.length}/${MAX_CHAPTERS}편 · 책은 이 기기에 보관돼요</small>
+        </div>
+        <div class="offline-actions">
+          <button class="primary-button" type="button" data-action="continue-book">다음 장면 그림 올리기 →</button>
+          <button class="secondary-button" type="button" data-action="view-book">지금까지 만든 책 보기</button>
+          <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
+        </div>`
+          : `
+        <div class="paper-prompt"><span>🎉</span><b>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
+        <div class="offline-actions">
+          <button class="primary-button" type="button" data-action="view-book">완성된 책 보기 📖</button>
+          <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
+        </div>`
+      }
+      ${state.finished ? `<p class="finish-message" role="status">잘했어요! 이제 종이와 색연필을 준비해볼까요?</p>` : ""}
+    </div>
+  `;
+}
+
+/* -------- 동화책 보기 -------- */
+
+function uniqueWords(book) {
+  const seen = new Set();
+  const words = [];
+  book.chapters.forEach((chapter) =>
+    chapter.story.pages.forEach((page) =>
+      (page.words || []).forEach((word) => {
+        const key = word.en.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        words.push(word);
+      })
+    )
+  );
+  return words;
+}
+function uniqueValues(values) {
+  return [...new Set(values.map((v) => v.trim()).filter(Boolean))];
+}
+
+function bookSpreads(book) {
+  const spreads = [{ kind: "cover" }];
+  book.chapters.forEach((chapter, chapterIndex) => {
+    chapter.story.pages.forEach((_, page) => spreads.push({ kind: "page", chapter: chapterIndex, page }));
+  });
+  spreads.push({ kind: "words" }, { kind: "parent" });
+  return spreads;
+}
+
+function bookViewHtml() {
+  const book = state.book;
+  if (!book) return "";
+  const first = book.chapters[0];
+  const last = book.chapters.at(-1);
+  if (!first || !last) return "";
+  const complete = book.chapters.length >= MAX_CHAPTERS;
+  const spreads = bookSpreads(book);
+  const index = Math.min(state.bookIndex, spreads.length - 1);
+  const spread = spreads[index];
+  const words = uniqueWords(book);
+  const characters = uniqueValues(book.chapters.flatMap((c) => c.analysis.characters));
+  const places = uniqueValues(book.chapters.map((c) => c.analysis.place));
+
+  let content = "";
+  if (spread.kind === "cover") {
+    content = `
+      <div class="book-cover">
+        <div class="book-cover-art"><img src="${first.imageDataUrl}" alt="첫 번째 그림" /></div>
+        <p class="eyebrow">${complete ? "완성된 동화책" : `만들고 있는 동화책 · ${book.chapters.length}편`}</p>
+        <h2>${escapeHtml(book.language === "en" ? first.story.titleEn : first.story.titleKo)}</h2>
+        ${book.language === "both" ? `<p class="english-line">${escapeHtml(first.story.titleEn)}</p>` : ""}
+        <p class="book-author">지은이 · ${book.origin ? `${escapeHtml(book.origin.authorName)} + ${escapeHtml(book.nickname)}` : escapeHtml(book.nickname)}</p>
+        ${book.origin ? `<p class="book-origin-note">🤝 친구 이야기를 이어서 함께 지었어요</p>` : ""}
+      </div>`;
+  } else if (spread.kind === "page") {
+    const chapter = book.chapters[spread.chapter];
+    const page = chapter.story.pages[spread.page];
+    content = `
+      <div class="book-page-spread" style="display:grid;gap:18px;">
+        <div class="story-image" style="position:relative;height:clamp(220px,40vh,340px);overflow:hidden;border-radius:22px;">
+          <img src="${chapter.imageDataUrl}" alt="${spread.chapter + 1}편 그림" style="width:100%;height:100%;object-fit:cover;object-position:${page.focus.x}% ${page.focus.y}%;" />
+          <span class="original-badge">${spread.chapter + 1}편${chapter.author ? ` · ${escapeHtml(withParticle(chapter.author, "이", ""))} 씀` : ""} · ${escapeHtml(
+      book.language === "en" ? chapter.story.titleEn : chapter.story.titleKo
+    )}</span>
+        </div>
+        <div class="story-copy">
+          ${book.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
+          ${book.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
+        </div>
+      </div>`;
+  } else if (spread.kind === "words") {
+    content = `
+      <div class="book-extra">
+        <p class="eyebrow">이 책에서 만난 영어 단어</p>
+        <h2>단어 카드 ${words.length}장</h2>
+        <ul class="word-cards">
+          ${words.map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}
+        </ul>
+      </div>`;
+  } else {
+    content = `
+      <div class="book-extra parent-summary">
+        <p class="eyebrow">부모님께 드리는 한 장 요약</p>
+        <h2>${escapeHtml(book.nickname)}의 상상 기록</h2>
+        <dl>
+          <div><dt>등장인물</dt><dd>${escapeHtml(characters.join(", "))}</dd></div>
+          <div><dt>상상한 장소</dt><dd>${escapeHtml(places.join(" → "))}</dd></div>
+          ${
+            book.origin
+              ? `<div><dt>함께 지은 친구</dt><dd>${escapeHtml(withParticle(book.origin.authorName, "이가", "가"))} 시작한 이야기를 ${escapeHtml(
+                  withParticle(book.nickname, "이가", "가")
+                )} 이어서 완성했어요.</dd></div>`
+              : ""
+          }
+          <div><dt>이야기 흐름</dt><dd><ol>${book.chapters
+            .map((c) => `<li><b>${escapeHtml(c.story.titleKo)}</b> — ${escapeHtml(c.story.summaryKo)}</li>`)
+            .join("")}</ol></dd></div>
+          ${
+            book.chapters.some((c) => c.story.choice)
+              ? `<div><dt>${escapeHtml(withParticle(book.nickname, "이가", "가"))} 정한 장면</dt><dd><ul class="choice-list">${book.chapters
+                  .map((c, i) => (c.story.choice ? `<li>${i + 1}편 · ${c.story.choice.byVoice ? "🎤 말로" : "👆 골라서"} "${escapeHtml(c.story.choice.ko)}"</li>` : ""))
+                  .join("")}</ul></dd></div>`
+              : ""
+          }
+          <div><dt>새로 만난 영어 단어</dt><dd>${escapeHtml(words.map((w) => w.en).join(", "))}</dd></div>
+          <div><dt>함께 나눌 질문</dt><dd>${escapeHtml(last.story.offlinePromptKo)}</dd></div>
+        </dl>
+      </div>`;
+  }
+
+  let navRight = "";
+  if (index < spreads.length - 1) {
+    navRight = `<button class="primary-inline" type="button" data-action="book-next">다음 →</button>`;
+  } else if (!complete) {
+    navRight = `<button class="primary-inline" type="button" data-action="continue-book">${book.chapters.length + 1}편 이어 그리기 →</button>`;
+  } else {
+    navRight = `<button class="primary-inline" type="button" data-action="book-restart">처음부터 다시 읽기</button>`;
+  }
+
+  return `
+    <div class="book-stage">
+      <div class="book-toolbar-wizard">
+        <strong>${index + 1} / ${spreads.length}</strong>
+        <div>
+          <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
+          <button type="button" data-action="new-book">새 책 시작</button>
+        </div>
+      </div>
+      <div class="book-spreads">
+        <section class="book-spread current">${content}</section>
+      </div>
+      <div class="story-nav">
+        <button type="button" data-action="book-prev" ${index === 0 ? "disabled" : ""}>← 이전</button>
+        ${navRight}
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------------------- 이벤트 바인딩 ---------------------------- */
+
+function bindEvents() {
+  const uploadForm = document.querySelector("#upload-form");
+  if (uploadForm) uploadForm.addEventListener("submit", onAnalyzeSubmit);
+
+  const imageInput = document.querySelector("#image-input");
+  if (imageInput) imageInput.addEventListener("change", onFileChange);
+
+  const nicknameInput = document.querySelector("#nickname-input");
+  if (nicknameInput) nicknameInput.addEventListener("input", (e) => (state.nickname = e.target.value));
+
+  const ageInput = document.querySelector("#age-input");
+  if (ageInput) ageInput.addEventListener("change", (e) => (state.age = Number(e.target.value)));
+
+  const privacyInput = document.querySelector("#privacy-input");
+  if (privacyInput)
+    privacyInput.addEventListener("change", (e) => {
+      state.privacyChecked = e.target.checked;
+      render();
     });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "이야기를 만들지 못했어요.");
+  const ownTextInput = document.querySelector("#own-text-input");
+  if (ownTextInput)
+    ownTextInput.addEventListener("input", (e) => {
+      state.ownText = e.target.value;
+      state.ownByVoice = false;
+      state.choiceSelection = e.target.value.trim() ? { kind: "own" } : null;
+    });
 
-    currentStory = data.story;
-    currentPage = 0;
-    loading.hidden = true;
-    book.hidden = false;
-    renderStory();
-  } catch (error) {
-    loading.hidden = true;
-    emptyState.hidden = false;
-    emptyState.innerHTML = `<p>${error.message}</p>`;
-  } finally {
-    form.querySelector(".submit").disabled = false;
+  root.querySelectorAll("[data-action]").forEach((el) => {
+    el.addEventListener("click", onAction);
+  });
+}
+
+async function onFileChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    setError("그림 파일은 8MB 이하로 올려주세요.");
+    return;
   }
-});
+  try {
+    state.imageDataUrl = await readFile(file);
+    state.imageName = file.name;
+    state.error = "";
+  } catch (caught) {
+    setError(caught.message || "그림을 읽지 못했어요.");
+    return;
+  }
+  render();
+}
 
-prevPage.addEventListener("click", () => {
-  currentPage = Math.max(0, currentPage - 1);
-  renderStory();
-});
+async function useSample() {
+  try {
+    state.imageDataUrl = await sampleToPng(demoSampleImagePath(chapterNumber()));
+    state.imageName = `그림일기_예제_${chapterNumber()}편.png`;
+    state.privacyChecked = true;
+    state.error = "";
+  } catch (caught) {
+    setError(caught.message || "예제를 불러오지 못했어요.");
+    return;
+  }
+  render();
+}
 
-nextPage.addEventListener("click", () => {
-  currentPage = Math.min((currentStory?.pages?.length || 1) - 1, currentPage + 1);
-  renderStory();
-});
+async function onAnalyzeSubmit(event) {
+  event.preventDefault();
+  if (!canSubmitUpload()) return;
+  state.busy = true;
+  state.error = "";
+  render();
+  try {
+    const data = await apiPost("/api/analyze", {
+      imageDataUrl: state.imageDataUrl,
+      nickname: state.nickname.trim(),
+      age: state.age,
+      chapter: chapterNumber()
+    });
+    state.analysis = data.analysis;
+    state.demoMode = Boolean(data.demoMode);
+    state.busy = false;
+    go("review");
+  } catch (caught) {
+    state.busy = false;
+    setError(caught.message || "그림을 읽지 못했어요.");
+  }
+}
 
-toggleEnglish.addEventListener("click", () => {
-  book.classList.toggle("show-english");
-  toggleEnglish.textContent = book.classList.contains("show-english") ? "영어 숨기기" : "영어 보기";
-});
+async function generateStory() {
+  if (!state.analysis) return;
+  state.busy = true;
+  state.error = "";
+  render();
+  try {
+    const data = await apiPost("/api/story", { phase: "opening", ...storyRequestBase() });
+    state.opening = data.opening;
+    state.story = null;
+    state.choosing = false;
+    state.pageIndex = 0;
+    state.pageArt = {};
+    state.demoMode = state.demoMode || Boolean(data.demoMode);
+    state.busy = false;
+    // 이야기가 시작되면 아이 그림에서 주인공을 오려 둔다.
+    state.characterCutoutDataUrl = await extractCharacter(state.imageDataUrl);
+    go("story");
+  } catch (caught) {
+    state.busy = false;
+    setError(caught.message || "이야기를 만들지 못했어요.");
+  }
+}
 
-printBook.addEventListener("click", () => {
-  window.print();
-});
+function startChoosing() {
+  if (!state.opening) return;
+  state.choosing = true;
+  state.choiceSelection = null;
+  state.ownText = "";
+  state.ownByVoice = false;
+  state.typing = false;
+  state.voiceError = "";
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (state.language === "en") speak(state.opening.questionEn || state.opening.questionKo, "en-US");
+  else speak(state.opening.questionKo, "ko-KR");
+}
+
+async function chooseNext(choice) {
+  if (!state.opening) return;
+  state.busy = true;
+  state.error = "";
+  render();
+  try {
+    const data = await apiPost("/api/story", { phase: "ending", ...storyRequestBase(), opening: state.opening, choice });
+    state.story = combineStory(state.opening, data.ending, choice);
+    state.demoMode = state.demoMode || Boolean(data.demoMode);
+    state.choosing = false;
+    state.pageIndex = OPENING_PAGES;
+    state.busy = false;
+    render();
+  } catch (caught) {
+    state.busy = false;
+    setError(caught.message || "이야기를 이어 쓰지 못했어요. 다시 골라볼까요?");
+  }
+}
+
+async function finishChapter() {
+  if (!state.analysis || !state.story) return;
+  state.busy = true;
+  render();
+  const storedImage = await shrinkImage(state.imageDataUrl);
+  const next = appendChapter(
+    state.book,
+    { imageDataUrl: storedImage, analysis: state.analysis, story: state.story },
+    { nickname: state.nickname.trim(), age: state.age, language: state.language }
+  );
+  state.book = next;
+  const storage = browserStorage();
+  const result = storage ? saveBook(storage, next) : { ok: false, message: "이 브라우저에서는 책을 보관할 수 없어요." };
+  state.busy = false;
+  go("offline");
+  if (!result.ok) setError(result.message);
+}
+
+function resetDrawing() {
+  state.imageDataUrl = "";
+  state.imageName = "";
+  state.privacyChecked = false;
+  state.analysis = null;
+  state.opening = null;
+  state.choosing = false;
+  state.story = null;
+  state.pageIndex = 0;
+  state.finished = false;
+  state.characterCutoutDataUrl = "";
+  state.pageArt = {};
+}
+
+async function startFriendBook(seed) {
+  state.busy = true;
+  state.error = "";
+  render();
+  try {
+    const chapters = await Promise.all(
+      seed.chapters.map(async (chapter) => ({
+        imageDataUrl: await shrinkImage(await sampleToPng(chapter.imagePath)),
+        analysis: chapter.analysis,
+        story: chapter.story,
+        author: seed.authorName
+      }))
+    );
+    const friendBook = {
+      id: `book-${Date.now()}`,
+      nickname: state.nickname.trim() || "아이",
+      age: state.age,
+      language: state.language,
+      chapters,
+      createdAt: new Date().toISOString(),
+      origin: { type: "friend", seedId: seed.id, authorName: seed.authorName }
+    };
+    const storage = browserStorage();
+    const result = storage ? saveBook(storage, friendBook) : { ok: true };
+    state.book = friendBook;
+    resetDrawing();
+    state.stage = "upload";
+    state.busy = false;
+    render();
+    if (!result.ok) setError(result.message);
+  } catch (caught) {
+    state.busy = false;
+    setError(caught.message || "친구 이야기를 가져오지 못했어요.");
+  }
+}
+
+function continueBook() {
+  resetDrawing();
+  state.bookIndex = 0;
+  go("upload");
+}
+
+function startNewBook() {
+  if (state.book && !window.confirm("지금 책을 지우고 새 책을 시작할까요? 필요하면 먼저 인쇄·PDF로 저장해주세요.")) return;
+  const storage = browserStorage();
+  if (storage) clearBook(storage);
+  state.book = null;
+  resetDrawing();
+  state.error = "";
+  state.stage = "upload";
+  render();
+}
+
+let recognitionRef = null;
+function startVoice() {
+  const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Constructor || state.voiceListening) return;
+  window.speechSynthesis?.cancel();
+  const recognition = new Constructor();
+  recognition.lang = "ko-KR";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onresult = (event) => {
+    const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
+    if (transcript) {
+      state.voiceError = "";
+      state.ownText = transcript;
+      state.ownByVoice = true;
+      state.typing = false;
+      state.choiceSelection = { kind: "own" };
+      render();
+      speak(`${transcript}. 이렇게 말했어요. 맞아요?`, "ko-KR");
+    } else {
+      state.voiceError = "잘 안 들렸어요. 버튼을 누르고 또박또박 말해볼까요?";
+      render();
+    }
+  };
+  const errorMessages = {
+    "not-allowed": "마이크를 쓸 수 없어요. 브라우저에서 마이크를 허용해주세요.",
+    "service-not-allowed": "마이크를 쓸 수 없어요. 브라우저에서 마이크를 허용해주세요.",
+    "no-speech": "잘 안 들렸어요. 버튼을 누르고 또박또박 말해볼까요?",
+    "audio-capture": "마이크를 찾지 못했어요.",
+    network: "인터넷이 불안정해서 듣지 못했어요."
+  };
+  recognition.onerror = (event) => {
+    if (event.error === "aborted") return;
+    state.voiceError = errorMessages[event.error] || "잘 듣지 못했어요. 다시 해볼까요?";
+    render();
+  };
+  recognition.onend = () => {
+    state.voiceListening = false;
+    recognitionRef = null;
+    render();
+  };
+  recognitionRef = recognition;
+  state.voiceListening = true;
+  render();
+  recognition.start();
+}
+
+function onAction(event) {
+  const el = event.currentTarget;
+  const action = el.dataset.action;
+
+  switch (action) {
+    case "use-sample":
+      useSample();
+      break;
+    case "go-friends":
+      go("friends");
+      break;
+    case "back-to-upload":
+      go("upload");
+      break;
+    case "pick-friend": {
+      const seed = seedBooks.find((s) => s.id === el.dataset.seedId);
+      if (seed) startFriendBook(seed);
+      break;
+    }
+    case "back":
+      go(el.dataset.target);
+      break;
+    case "to-language":
+      readReviewFields();
+      go("language");
+      break;
+    case "set-language":
+      state.language = el.dataset.value;
+      render();
+      break;
+    case "generate-story":
+      generateStory();
+      break;
+    case "start-choosing":
+      startChoosing();
+      break;
+    case "stop-choosing":
+      state.choosing = false;
+      render();
+      break;
+    case "ask-again":
+      if (state.language === "en") speak(state.opening.questionEn || state.opening.questionKo, "en-US");
+      else speak(state.opening.questionKo, "ko-KR");
+      break;
+    case "pick-card": {
+      const index = Number(el.dataset.index);
+      state.choiceSelection = { kind: "card", index };
+      const card = state.opening.choices[index];
+      render();
+      if (state.language === "en") speak(card.en, "en-US");
+      else speak(card.ko, "ko-KR");
+      break;
+    }
+    case "toggle-typing":
+      state.typing = !state.typing;
+      render();
+      break;
+    case "edit-own":
+      state.typing = true;
+      render();
+      break;
+    case "voice-start":
+      startVoice();
+      break;
+    case "confirm-choice": {
+      if (!state.choiceSelection) break;
+      if (state.choiceSelection.kind === "card") {
+        const card = state.opening.choices[state.choiceSelection.index];
+        chooseNext({ ko: card.ko, en: card.en, byVoice: false });
+      } else {
+        const text = state.ownText.trim();
+        if (text) chooseNext({ ko: text, en: "", byVoice: state.ownByVoice });
+      }
+      break;
+    }
+    case "listen-ko": {
+      const page = (state.story ? state.story.pages : state.opening.pages)[state.pageIndex];
+      speak(page.ko, "ko-KR");
+      break;
+    }
+    case "listen-en": {
+      const page = (state.story ? state.story.pages : state.opening.pages)[state.pageIndex];
+      speak(page.en, "en-US");
+      break;
+    }
+    case "story-prev":
+      state.pageIndex = Math.max(0, state.pageIndex - 1);
+      render();
+      break;
+    case "story-next": {
+      const pages = state.story ? state.story.pages : state.opening.pages;
+      state.pageIndex = Math.min(pages.length - 1, state.pageIndex + 1);
+      render();
+      break;
+    }
+    case "finish-chapter":
+      finishChapter();
+      break;
+    case "continue-book":
+      continueBook();
+      break;
+    case "view-book":
+      state.bookIndex = 0;
+      go("book");
+      break;
+    case "finish-today":
+      state.finished = true;
+      render();
+      break;
+    case "new-book":
+      startNewBook();
+      break;
+    case "book-prev":
+      state.bookIndex = Math.max(0, state.bookIndex - 1);
+      render();
+      break;
+    case "book-next":
+      state.bookIndex += 1;
+      render();
+      break;
+    case "book-restart":
+      state.bookIndex = 0;
+      render();
+      break;
+    case "print-book":
+      window.print();
+      break;
+    default:
+      break;
+  }
+}

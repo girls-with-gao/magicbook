@@ -20,6 +20,8 @@ npm install
 npm run dev
 ```
 
+API 키 없이 예제만 보려면 `npm run demo`로 실행합니다.
+
 인터넷 창에서 <http://localhost:3000>을 엽니다.
 
 API 키가 없어도 `예제로 시작하기`를 누르면 5단계 전체를 시연할 수 있습니다.
@@ -38,7 +40,6 @@ API 키는 결제와 연결된 비밀 출입증입니다. GitHub, 카카오톡, 
 
 ```bash
 npm test
-npm run build
 ```
 
 ## 개인정보 원칙
@@ -57,11 +58,8 @@ npm run build
 
 ## 기술 구성
 
-- Next.js 16.3.3 App Router
-- React 19.3.0
-- TypeScript
-- OpenAI Responses API
+- Node.js 기본 http 서버 (빌드 단계 없음)
+- 바닐라 자바스크립트 ES 모듈
+- OpenAI Responses API (이야기 + 쪽마다 삽화)
 - Vitest
-- Vercel 배포 기준
 
-`server.js` 및 `public/index.html`, `public/app.js`, `public/styles.css`는 최초 Node.js 프로토타입 참고용으로 보존했으며, 현재 실행 경로는 `app/`의 Next.js 웹앱입니다.

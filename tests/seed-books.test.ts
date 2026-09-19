@@ -9,7 +9,8 @@ describe("친구 이야기 예시", () => {
     expect(new Set(seedBooks.map((seed) => seed.authorName)).size).toBe(3);
   });
 
-  it.each(seedBooks.map((seed) => [seed.id, seed] as const))("%s 이야기가 이어 쓸 수 있는 형태다", (_id, seed) => {
+  it("모든 예시가 이어 쓸 수 있는 형태다", () => {
+    seedBooks.forEach((seed) => {
     expect(seed.chapters.length).toBeGreaterThan(0);
     expect(seed.chapters.length).toBeLessThan(MAX_CHAPTERS);
     expect(seed.hook.length).toBeGreaterThan(0);
@@ -22,6 +23,7 @@ describe("친구 이야기 예시", () => {
         expect(page.ko.length).toBeGreaterThan(0);
         expect(page.en.length).toBeGreaterThan(0);
         expect(page.words.length).toBeLessThanOrEqual(2);
+        });
       });
     });
   });

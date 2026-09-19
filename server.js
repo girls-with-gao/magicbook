@@ -35,7 +35,8 @@ async function loadEnv() {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) return;
       const [key, ...valueParts] = trimmed.split("=");
-      if (!key || process.env[key]) return;
+      // 빈 값으로 넘겨 준 경우도 그대로 존중한다(OPENAI_API_KEY= 로 예제 모드 확인).
+      if (!key || key in process.env) return;
       process.env[key] = valueParts.join("=").trim().replace(/^["']|["']$/g, "");
     });
   } catch {

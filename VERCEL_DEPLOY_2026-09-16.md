@@ -1,4 +1,8 @@
-# 그림이야기 Vercel 배포 안내
+# 그림이야기 배포 안내
+
+> 2026-09-19 수정: Next.js를 제거하고 순수 Node 서버(`server.js`)로 바뀌었다.
+> Vercel에 올리려면 `server.js`를 서버리스 함수로 감싸거나, Render·Railway처럼
+> Node 프로세스를 그대로 띄우는 곳을 쓰는 편이 간단하다. 배포 전에 이 부분을 먼저 정한다.
 
 배포는 내 컴퓨터에서만 보이던 웹앱에 인터넷 주소를 붙이는 작업이다.
 
@@ -7,7 +11,7 @@
 ```bash
 npm install
 npm test
-npm run build
+npm run demo   # 예제 모드로 화면 확인
 ```
 
 모두 오류 없이 끝나야 한다.
@@ -19,7 +23,8 @@ npm run build
 3. 오른쪽 위 **Add New…** → **Project** 누르기
 4. `girls-with-gao/magicbook` 저장소 찾기
 5. 저장소 오른쪽의 **Import** 누르기
-6. Framework Preset이 **Next.js**로 자동 표시되는지 확인
+6. Framework Preset을 **Other**로 고른다 (Next.js 앱은 제거됐다)
+7. Build Command는 비워 두고, Output Directory도 비워 둔다
 
 ## 3. AI 비밀 출입증 넣기
 

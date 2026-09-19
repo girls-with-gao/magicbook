@@ -1823,6 +1823,29 @@ button.choice-card:active {
   }
 }
 
+/* 책 화면의 편 표시 배지: 그림 위에 겹치고, 길어지면 줄바꿈한다 */
+.story-image {
+  position: relative;
+}
+
+.original-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  max-width: calc(100% - 20px);
+  padding: 7px 11px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #65564e;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  backdrop-filter: blur(6px);
+}
+
 @media print {
   .stepper,
   .book-toolbar-wizard,
@@ -1851,5 +1874,33 @@ button.choice-card:active {
     min-height: 0;
     page-break-after: always;
     break-after: page;
+  }
+
+  .book-spread:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* 인쇄에서는 그림을 자르지 말고 한 장에 다 보이게 한다 */
+  .book-page-spread .story-image {
+    height: 58vh !important;
+  }
+
+  .book-page-spread .story-image img {
+    object-fit: contain !important;
+    background: #fffdf6;
+  }
+
+  .korean-line,
+  .english-line {
+    font-size: 15pt;
+  }
+
+  .studio-card {
+    min-height: 0;
+  }
+
+  body {
+    background: #fff;
   }
 }

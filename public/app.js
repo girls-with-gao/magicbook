@@ -163,7 +163,8 @@ function shrinkImage(dataUrl, maxSide = 1280) {
   });
 }
 
-// 팀원 코드 유지: 흰 종이 배경을 지우고 아이 그림(주인공)만 오려낸다.
+// 팀원 코드 유지 + 개선: 흰 종이 배경을 지우고, 가장 큰 덩어리(주인공)만 오려낸다.
+// 그림일기의 손글씨처럼 따로 떨어진 작은 덩어리는 버린다.
 function extractCharacter(dataUrl) {
   return new Promise((resolve) => {
     if (!dataUrl) {
@@ -175,50 +176,40 @@ function extractCharacter(dataUrl) {
       const maxSide = 900;
       const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
       const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, width, height);
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
-      let minX = canvas.width;
-      let minY = canvas.height;
-      let maxX = 0;
-      let maxY = 0;
+      const ink = new Uint8Array(width * height);
 
-      for (let y = 0; y < canvas.height; y += 1) {
-        for (let x = 0; x < canvas.width; x += 1) {
-          const index = (y * canvas.width + x) * 4;
-          const r = data[index];
-          const g = data[index + 1];
-          const b = data[index + 2];
-          // 위험 완화: 종이·그림자·격자무늬가 남는 사례가 있어 기준값을 조금 더 느슨하게 잡는다.
-          const isPaper = r > 210 && g > 210 && b > 195 && Math.abs(r - g) < 30 && Math.abs(g - b) < 40;
-          if (isPaper) {
-            data[index + 3] = 0;
-          } else if (data[index + 3] > 20) {
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
+      for (let i = 0; i < width * height; i += 1) {
+        const index = i * 4;
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const isPaper = r > 210 && g > 210 && b > 195 && Math.abs(r - g) < 30 && Math.abs(g - b) < 40;
+        if (isPaper || data[index + 3] <= 20) data[index + 3] = 0;
+        else ink[i] = 1;
       }
-
       ctx.putImageData(imageData, 0, 0);
 
-      if (minX >= maxX || minY >= maxY) {
+      const box = largestInkBox(ink, width, height);
+      if (!box) {
         // 오려내기에 실패하면 원본 그림을 그대로 쓴다.
         resolve(dataUrl);
         return;
       }
 
       const padding = 18;
-      const sx = Math.max(0, minX - padding);
-      const sy = Math.max(0, minY - padding);
-      const sw = Math.min(canvas.width - sx, maxX - minX + padding * 2);
-      const sh = Math.min(canvas.height - sy, maxY - minY + padding * 2);
+      const sx = Math.max(0, box.minX - padding);
+      const sy = Math.max(0, box.minY - padding);
+      const sw = Math.min(width - sx, box.maxX - box.minX + padding * 2);
+      const sh = Math.min(height - sy, box.maxY - box.minY + padding * 2);
       const output = document.createElement("canvas");
       output.width = sw;
       output.height = sh;
@@ -228,6 +219,66 @@ function extractCharacter(dataUrl) {
     image.onerror = () => resolve(dataUrl);
     image.src = dataUrl;
   });
+}
+
+/**
+ * 이어진 그림 덩어리를 모두 찾아, 가장 큰 덩어리와 그에 맞붙은 덩어리만 감싸는 사각형을 돌려준다.
+ * 손글씨 줄처럼 멀리 떨어진 작은 덩어리는 빠진다.
+ */
+function largestInkBox(ink, width, height) {
+  const label = new Int32Array(width * height).fill(-1);
+  const stack = new Int32Array(width * height);
+  const blobs = [];
+
+  for (let start = 0; start < ink.length; start += 1) {
+    if (!ink[start] || label[start] !== -1) continue;
+    const id = blobs.length;
+    let top = 0;
+    stack[top++] = start;
+    label[start] = id;
+    const blob = { area: 0, minX: width, minY: height, maxX: 0, maxY: 0 };
+
+    while (top > 0) {
+      const current = stack[--top];
+      const x = current % width;
+      const y = (current - x) / width;
+      blob.area += 1;
+      if (x < blob.minX) blob.minX = x;
+      if (x > blob.maxX) blob.maxX = x;
+      if (y < blob.minY) blob.minY = y;
+      if (y > blob.maxY) blob.maxY = y;
+
+      if (x > 0 && ink[current - 1] && label[current - 1] === -1) { label[current - 1] = id; stack[top++] = current - 1; }
+      if (x < width - 1 && ink[current + 1] && label[current + 1] === -1) { label[current + 1] = id; stack[top++] = current + 1; }
+      if (y > 0 && ink[current - width] && label[current - width] === -1) { label[current - width] = id; stack[top++] = current - width; }
+      if (y < height - 1 && ink[current + width] && label[current + width] === -1) { label[current + width] = id; stack[top++] = current + width; }
+    }
+    blobs.push(blob);
+  }
+
+  if (!blobs.length) return null;
+
+  const main = blobs.reduce((best, blob) => (blob.area > best.area ? blob : best), blobs[0]);
+  const margin = Math.round(Math.min(width, height) * 0.05);
+  const box = { minX: main.minX, minY: main.minY, maxX: main.maxX, maxY: main.maxY };
+
+  // 눈·색칠처럼 주인공 근처에 있거나 충분히 큰 덩어리는 함께 감싼다.
+  blobs.forEach((blob) => {
+    if (blob === main) return;
+    const nearby =
+      blob.maxX >= main.minX - margin &&
+      blob.minX <= main.maxX + margin &&
+      blob.maxY >= main.minY - margin &&
+      blob.minY <= main.maxY + margin;
+    if (!nearby && blob.area < main.area * 0.35) return;
+    box.minX = Math.min(box.minX, blob.minX);
+    box.minY = Math.min(box.minY, blob.minY);
+    box.maxX = Math.max(box.maxX, blob.maxX);
+    box.maxY = Math.max(box.maxY, blob.maxY);
+  });
+
+  if (box.minX >= box.maxX || box.minY >= box.maxY) return null;
+  return box;
 }
 
 /* ---------------------------- API 호출 ---------------------------- */
@@ -842,20 +893,8 @@ function bookSpreads(book) {
   return spreads;
 }
 
-function bookViewHtml() {
-  const book = state.book;
-  if (!book) return "";
-  const first = book.chapters[0];
-  const last = book.chapters.at(-1);
-  if (!first || !last) return "";
-  const complete = book.chapters.length >= MAX_CHAPTERS;
-  const spreads = bookSpreads(book);
-  const index = Math.min(state.bookIndex, spreads.length - 1);
-  const spread = spreads[index];
-  const words = uniqueWords(book);
-  const characters = uniqueValues(book.chapters.flatMap((c) => c.analysis.characters));
-  const places = uniqueValues(book.chapters.map((c) => c.analysis.place));
-
+/** 책의 한 장(표지·본문·단어 카드·부모 요약)을 그린다. 인쇄를 위해 모든 장을 미리 만들어 둔다. */
+function spreadContentHtml(book, spread, { first, last, complete, words, characters, places }) {
   let content = "";
   if (spread.kind === "cover") {
     content = `
@@ -923,6 +962,26 @@ function bookViewHtml() {
       </div>`;
   }
 
+  return content;
+}
+
+function bookViewHtml() {
+  const book = state.book;
+  if (!book) return "";
+  const first = book.chapters[0];
+  const last = book.chapters.at(-1);
+  if (!first || !last) return "";
+  const complete = book.chapters.length >= MAX_CHAPTERS;
+  const spreads = bookSpreads(book);
+  const index = Math.min(state.bookIndex, spreads.length - 1);
+  const spread = spreads[index];
+  const words = uniqueWords(book);
+  const characters = uniqueValues(book.chapters.flatMap((c) => c.analysis.characters));
+  const places = uniqueValues(book.chapters.map((c) => c.analysis.place));
+
+  const spreadsHtml = spreads
+    .map((item, itemIndex) => `<section class="book-spread ${itemIndex === index ? "current" : ""}">${spreadContentHtml(book, item, { first, last, complete, words, characters, places })}</section>`)
+    .join("");
   let navRight = "";
   if (index < spreads.length - 1) {
     navRight = `<button class="primary-inline" type="button" data-action="book-next">다음 →</button>`;
@@ -941,9 +1000,7 @@ function bookViewHtml() {
           <button type="button" data-action="new-book">새 책 시작</button>
         </div>
       </div>
-      <div class="book-spreads">
-        <section class="book-spread current">${content}</section>
-      </div>
+      <div class="book-spreads">${spreadsHtml}</div>
       <div class="story-nav">
         <button type="button" data-action="book-prev" ${index === 0 ? "disabled" : ""}>← 이전</button>
         ${navRight}

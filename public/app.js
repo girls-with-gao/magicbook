@@ -9,6 +9,7 @@ import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "./shar
 import { seedBooks } from "./shared/seed-books.js";
 import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.js";
 import { getCharacterBox, getPageFraming } from "./shared/page-composition.js";
+import { getRecurringWords, isCloseMatch, isPracticed, markPracticed } from "./shared/word-practice.js";
 
 const root = document.querySelector("#app-root");
 
@@ -61,7 +62,10 @@ const state = {
   // "cutout" = 주인공만 오려 배경에 얹기, "whole" = 그림 전체를 액자로 보여 주기
   artMode: "whole",
   pageArt: {}, // pageIndex -> { imageDataUrl, framing, textSide }
-  bookIndex: 0
+  bookIndex: 0,
+  // "계속 나온 단어" 발음 연습 진행 상태. en(소문자) -> { listening, attempts, feedback }.
+  // 도장(book.practiced)과 달리 새로고침하면 사라진다 — 그 자리에서의 시도 표시일 뿐이다.
+  wordPractice: {}
 };
 
 (function init() {
@@ -1018,6 +1022,15 @@ function parentRecordHtml() {
           : ""
       }
 
+      ${
+        book.practiced && book.practiced.length
+          ? `<section class="record-block">
+        <h3>오늘 말해본 단어</h3>
+        <p class="record-practiced">오늘 말해본 단어 ${book.practiced.length}개 — ${escapeHtml(book.practiced.join(", "))}</p>
+      </section>`
+          : ""
+      }
+
       <section class="record-block record-question">
         <h3>오늘 함께 나눌 질문</h3>
         <p>${escapeHtml(last.story.offlinePromptKo)}</p>
@@ -1047,6 +1060,105 @@ function uniqueWords(book) {
 }
 function uniqueValues(values) {
   return [...new Set(values.map((v) => v.trim()).filter(Boolean))];
+}
+
+/* -------- 계속 나온 단어로 발음해보기 -------- */
+
+/**
+ * 책 안에서 반복해서 나온 단어를 큰 카드로 보여 준다. 듣기·따라 말하기만 있고
+ * 점수·정확도는 계산하지 않는다 — "말해봤다"는 사실만 도장으로 남긴다.
+ */
+function recurringWordsHtml(recurring) {
+  return `
+    <section class="recurring-words">
+      <h3>우리 책에 계속 나온 단어</h3>
+      <ul class="recurring-word-list">
+        ${recurring.map((word) => recurringWordCardHtml(word)).join("")}
+      </ul>
+    </section>
+  `;
+}
+
+function recurringWordCardHtml(word) {
+  const key = word.en.trim().toLowerCase();
+  const practiced = isPracticed(state.book, word.en);
+  const practice = state.wordPractice[key] || {};
+  const micButton =
+    voiceSupported() && practice.feedback !== "done"
+      ? `<button type="button" class="voice-button ${practice.listening ? "listening" : ""}" data-action="word-repeat" data-word="${escapeHtml(word.en)}">${
+          practice.listening ? "듣고 있어요…" : "🎤 따라 말하기"
+        }</button>`
+      : "";
+  let feedback = "";
+  if (practice.feedback === "success") feedback = `<p class="practice-feedback success">잘했어요!</p>`;
+  else if (practice.feedback === "retry") feedback = `<p class="practice-feedback retry">한 번 더 해볼까?</p>`;
+  else if (practice.feedback === "done") feedback = `<p class="practice-feedback done">다음에 또 해보자</p>`;
+
+  return `
+    <li class="recurring-word-card">
+      ${practiced ? `<span class="practice-stamp" aria-hidden="true">⭐</span>` : ""}
+      <b>${escapeHtml(word.en)}</b>
+      <span>${escapeHtml(word.ko)}</span>
+      <div class="recurring-word-actions">
+        <button type="button" data-action="word-listen" data-word="${escapeHtml(word.en)}">🔊 듣기</button>
+        ${micButton}
+      </div>
+      ${feedback}
+    </li>
+  `;
+}
+
+let wordRecognitionRef = null;
+/** 영어 단어 하나를 따라 말해 보게 하고, 느슨하게 비교해서 도장을 남긴다. 점수는 매기지 않는다. */
+function startWordRepeat(enWord) {
+  const Constructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Constructor) return;
+  const key = enWord.trim().toLowerCase();
+  const current = state.wordPractice[key] || { attempts: 0 };
+  if (current.listening) return;
+
+  window.speechSynthesis?.cancel();
+  const recognition = new Constructor();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
+    const before = state.wordPractice[key] || { attempts: 0 };
+    if (transcript && isCloseMatch(enWord, transcript)) {
+      state.wordPractice[key] = { attempts: before.attempts, listening: false, feedback: "success" };
+      if (state.book) {
+        state.book = markPracticed(state.book, enWord);
+        const storage = browserStorage();
+        if (storage) saveBook(storage, state.book);
+      }
+    } else {
+      const attempts = before.attempts + 1;
+      // 두 번 실패하면 "다음에 또 해보자"로 넘어가고 더 권하지 않는다.
+      state.wordPractice[key] = { attempts, listening: false, feedback: attempts >= 2 ? "done" : "retry" };
+    }
+    render();
+  };
+  recognition.onerror = (event) => {
+    if (event.error === "aborted") return;
+    const before = state.wordPractice[key] || { attempts: 0 };
+    state.wordPractice[key] = { ...before, listening: false };
+    render();
+  };
+  recognition.onend = () => {
+    wordRecognitionRef = null;
+    const before = state.wordPractice[key];
+    if (before && before.listening) {
+      state.wordPractice[key] = { ...before, listening: false };
+      render();
+    }
+  };
+
+  wordRecognitionRef = recognition;
+  state.wordPractice[key] = { ...current, listening: true, feedback: "" };
+  render();
+  recognition.start();
 }
 
 function bookSpreads(book) {
@@ -1088,13 +1200,22 @@ function spreadContentHtml(book, spread, { first, last, complete, words, charact
         </div>
       </div>`;
   } else if (spread.kind === "words") {
+    const recurring = getRecurringWords(book);
+    const recurringKeys = new Set(recurring.map((w) => w.en.toLowerCase()));
+    const otherWords = words.filter((w) => !recurringKeys.has(w.en.toLowerCase()));
     content = `
-      <div class="book-extra">
+      <div class="book-extra word-spread">
         <p class="eyebrow">이 책에서 만난 영어 단어</p>
         <h2>단어 카드 ${words.length}장</h2>
+        ${recurring.length ? recurringWordsHtml(recurring) : ""}
+        ${
+          otherWords.length
+            ? `<h3 class="word-section-title">이번에 만난 단어</h3>
         <ul class="word-cards">
-          ${words.map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}
-        </ul>
+          ${otherWords.map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}
+        </ul>`
+            : ""
+        }
       </div>`;
   } else {
     content = `
@@ -1583,6 +1704,12 @@ function onAction(event) {
       break;
     case "print-book":
       window.print();
+      break;
+    case "word-listen":
+      speak(el.dataset.word, "en-US");
+      break;
+    case "word-repeat":
+      startWordRepeat(el.dataset.word);
       break;
     default:
       break;

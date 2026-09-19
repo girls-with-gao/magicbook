@@ -76,6 +76,7 @@
  * @property {StoryChapter[]} chapters
  * @property {string} createdAt
  * @property {BookOrigin} [origin]
+ * @property {string[]} [practiced] 발음해본 영어 단어(소문자). "계속 나온 단어" 도장 기록.
  *
  * @typedef {Object} StoryRequest
  * @property {string} nickname

@@ -1,7 +1,8 @@
-export type WizardStage = "upload" | "review" | "language" | "story" | "offline" | "book";
+export type WizardStage = "upload" | "friends" | "review" | "language" | "story" | "offline" | "book";
 
 const transitions: Record<WizardStage, WizardStage[]> = {
-  upload: ["review", "book"],
+  upload: ["review", "book", "friends"],
+  friends: ["upload"],
   review: ["upload", "language"],
   language: ["review", "story"],
   story: ["language", "offline"],

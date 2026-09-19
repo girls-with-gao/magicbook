@@ -59,9 +59,12 @@ export function appendChapter(
   meta: Pick<StoryBook, "nickname" | "age" | "language">,
   now = new Date()
 ): StoryBook {
+  // 친구 이야기에서 시작한 책은 누가 어느 편을 썼는지 남긴다.
+  const authored = book?.origin ? { ...chapter, author: meta.nickname } : chapter;
   if (book && !isBookFull(book)) {
-    return { ...book, ...meta, chapters: [...book.chapters, chapter] };
+    return { ...book, ...meta, chapters: [...book.chapters, authored] };
   }
+  // 책이 다 차면 새 책을 시작한다. 친구 이야기 표시는 이어가지 않는다.
   return {
     id: `book-${now.getTime()}`,
     ...meta,

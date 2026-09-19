@@ -69,4 +69,15 @@ describe("AI prompts", () => {
     expect(prompt).toContain("final chapter");
     expect(prompt).toContain("cover");
   });
+
+  it("마지막 편의 갈림길은 결말을 묻는 카드로 만든다", () => {
+    const previousChapters = [1, 2, 3].map((n) => ({ titleKo: `${n}편`, summaryKo: "요약" }));
+    const last = buildOpeningPrompt({ ...base, previousChapters });
+    expect(last).toContain("how to END the story");
+    expect(last).toContain("close the adventure");
+
+    const middle = buildOpeningPrompt({ ...base, previousChapters: previousChapters.slice(0, 1) });
+    expect(middle).not.toContain("how to END the story");
+    expect(middle).toContain("without ending it");
+  });
 });

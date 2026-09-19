@@ -1208,6 +1208,160 @@ button.choice-card:active {
   }
 }
 
+/* ---------- 친구 이야기 이어 쓰기 ---------- */
+
+.friend-entry {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 2px dashed #bfe3d6;
+  border-radius: 20px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  text-align: left;
+}
+
+.friend-entry span {
+  font-size: 26px;
+}
+
+.friend-entry b {
+  font-size: 16px;
+}
+
+.friend-entry small {
+  color: #3f6d61;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.friend-panel .seed-note {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: #fff1c9;
+  color: #7a5814;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.seed-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.seed-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+}
+
+.seed-art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--sky);
+}
+
+.seed-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.seed-emoji {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+}
+
+.seed-body {
+  display: grid;
+  gap: 8px;
+}
+
+.seed-body h3 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.seed-hook {
+  margin: 0;
+  color: #6f625a;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.seed-body details summary {
+  cursor: pointer;
+  color: var(--coral-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.seed-body details ol {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.seed-body details li {
+  display: grid;
+  gap: 2px;
+}
+
+.seed-body > small {
+  color: #8a7c72;
+  font-size: 12px;
+  text-align: center;
+}
+
+.seed-body .primary-button {
+  margin-top: 4px;
+}
+
+.coauthor-line {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--green-soft);
+  color: var(--green-dark);
+  font-weight: 900;
+}
+
+.book-origin-note {
+  margin: 6px 0 0;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (min-width: 900px) {
+  .seed-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .seed-card {
+    align-content: start;
+  }
+}
+
 @media print {
   body {
     background: #fff;

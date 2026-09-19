@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { withParticle } from "@/lib/korean";
 import { MAX_CHAPTERS, type StoryBook as Book, type StoryWord } from "@/lib/story-types";
 
 type Spread =
@@ -72,7 +73,10 @@ export function StoryBookView({
           <p className="eyebrow">{complete ? "완성된 동화책" : `만들고 있는 동화책 · ${book.chapters.length}편`}</p>
           <h2>{language === "en" ? first.story.titleEn : first.story.titleKo}</h2>
           {language === "both" ? <p className="english-line">{first.story.titleEn}</p> : null}
-          <p className="book-author">지은이 · {book.nickname}</p>
+          <p className="book-author">
+            지은이 · {book.origin ? `${book.origin.authorName} + ${book.nickname}` : book.nickname}
+          </p>
+          {book.origin ? <p className="book-origin-note">🤝 친구 이야기를 이어서 함께 지었어요</p> : null}
         </div>
       );
     }
@@ -92,7 +96,8 @@ export function StoryBookView({
               style={{ objectFit: "cover", objectPosition: `${page.focus.x}% ${page.focus.y}%` }}
             />
             <span className="original-badge">
-              {spread.chapter + 1}편 · {language === "en" ? chapter.story.titleEn : chapter.story.titleKo}
+              {spread.chapter + 1}편{chapter.author ? ` · ${withParticle(chapter.author, "이", "")} 씀` : ""} ·{" "}
+              {language === "en" ? chapter.story.titleEn : chapter.story.titleKo}
             </span>
           </div>
           <div className="story-copy">
@@ -127,6 +132,15 @@ export function StoryBookView({
         <dl>
           <div><dt>등장인물</dt><dd>{characters.join(", ")}</dd></div>
           <div><dt>상상한 장소</dt><dd>{places.join(" → ")}</dd></div>
+          {book.origin ? (
+            <div>
+              <dt>함께 지은 친구</dt>
+              <dd>
+                {withParticle(book.origin.authorName, "이가", "가")} 시작한 이야기를{" "}
+                {withParticle(book.nickname, "이가", "가")} 이어서 완성했어요.
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt>이야기 흐름</dt>
             <dd>
@@ -139,7 +153,7 @@ export function StoryBookView({
           </div>
           {book.chapters.some((chapter) => chapter.story.choice) ? (
             <div>
-              <dt>{book.nickname}이(가) 정한 장면</dt>
+              <dt>{withParticle(book.nickname, "이가", "가")} 정한 장면</dt>
               <dd>
                 <ul className="choice-list">
                   {book.chapters.map((chapter, chapterIndex) =>

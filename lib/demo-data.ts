@@ -9,20 +9,7 @@ import {
   type StoryOpening
 } from "./story-types";
 
-function hasKoreanFinalConsonant(value: string) {
-  const lastCharacter = value.trim().at(-1);
-
-  if (!lastCharacter) return false;
-
-  const code = lastCharacter.charCodeAt(0);
-  const isHangulSyllable = code >= 0xac00 && code <= 0xd7a3;
-
-  return isHangulSyllable && (code - 0xac00) % 28 !== 0;
-}
-
-function childNameWithParticle(name: string, afterFinal: string, afterVowel: string) {
-  return `${name}${hasKoreanFinalConsonant(name) ? afterFinal : afterVowel}`;
-}
+import { withParticle as childNameWithParticle } from "./korean";
 
 export const demoAnalysis: DrawingAnalysis = {
   characters: ["수민이", "엄마"],
@@ -301,12 +288,12 @@ const demoBranches: DemoBranch[] = [
     ]
   },
   {
-    questionKo: "환해진 마을에서 무엇을 할까?",
-    questionEn: "What should we do in the bright village?",
+    questionKo: "이야기를 어떻게 끝낼까?",
+    questionEn: "How should we end the story?",
     choices: [
       { emoji: "💃", ko: "다 같이 춤추기", en: "Dance together" },
-      { emoji: "🎉", ko: "축하 파티 열기", en: "Throw a party" },
-      { emoji: "🌟", ko: "불빛 구경하기", en: "Watch the lights" }
+      { emoji: "🎁", ko: "선물 주고 인사하기", en: "Give a gift and say bye" },
+      { emoji: "🌙", ko: "다 같이 잠들기", en: "Fall asleep together" }
     ]
   }
 ];

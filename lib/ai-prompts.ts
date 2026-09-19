@@ -68,6 +68,12 @@ function sharedRules(age: number) {
 
 /** 1단계: 앞 2페이지를 쓰고, 아이가 고를 갈림길 질문과 카드 3장을 만든다. */
 export function buildOpeningPrompt({ nickname, age, analysis, previousChapters = [] }: StoryRequest) {
+  const finalChapter = previousChapters.length + 1 >= MAX_CHAPTERS;
+  const choiceRules = finalChapter
+    ? `- This is the last chapter of the book, so the question must ask how to END the story (e.g. "이야기를 어떻게 끝낼까?").
+- All ${CHOICE_COUNT} choices must be gentle ways to close the adventure — going home, giving a gift, saying goodbye, falling asleep together — never a new adventure.`
+    : `- Ask one very short question a child can answer (Korean and English), e.g. "조개에게 무엇을 해볼까?".
+- Offer choices that push the story forward without ending it.`;
   return `
 You create a safe, warm, interactive story for a ${age}-year-old child using the nickname "${nickname}".
 The child will choose what happens next, so write only the beginning.
@@ -77,7 +83,7 @@ ${buildContinuationSection(previousChapters)}
 Requirements:
 - Return exactly ${OPENING_PAGES} pages: pages 1-${OPENING_PAGES} of a ${STORY_PAGES}-page story. Do not resolve anything yet.
 - Page ${OPENING_PAGES} must end at a clear decision point for ${nickname}.
-- Ask one very short question a child can answer (Korean and English), e.g. "조개에게 무엇을 해볼까?".
+${choiceRules}
 - Offer exactly ${CHOICE_COUNT} choices. Each choice is one short action phrase (max 12 Korean characters) with one fitting emoji.
 - Choices must be clearly different from each other, all kind and safe, and none may be "wrong".
 ${sharedRules(age)}

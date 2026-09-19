@@ -75,3 +75,35 @@ describe("parsePreviousChapters", () => {
     expect(parsePreviousChapters("nope")).toEqual([]);
   });
 });
+
+describe("친구 이야기에서 시작한 책", () => {
+  const friendBook = {
+    id: "book-1",
+    nickname: "수민",
+    age: 7,
+    language: "both" as const,
+    createdAt: new Date().toISOString(),
+    origin: { type: "friend" as const, seedId: "space-rabbit", authorName: "민준" },
+    chapters: [{ ...chapter(1), author: "민준" }]
+  };
+
+  it("이어 쓴 편에 아이 이름을 남기고 친구 표시를 유지한다", () => {
+    const next = appendChapter(friendBook, chapter(2), meta);
+    expect(next.origin).toEqual(friendBook.origin);
+    expect(next.chapters.map((item) => item.author)).toEqual(["민준", "수민"]);
+  });
+
+  it("책이 다 차면 시작하는 새 책에는 친구 표시를 이어가지 않는다", () => {
+    let book = friendBook;
+    [2, 3, 4].forEach((n) => (book = appendChapter(book, chapter(n), meta) as typeof friendBook));
+    const fresh = appendChapter(book, chapter(1), meta, new Date(Date.now() + 1000));
+    expect(fresh.origin).toBeUndefined();
+    expect(fresh.chapters[0].author).toBeUndefined();
+  });
+
+  it("저장했다가 다시 읽어도 친구 표시가 남는다", () => {
+    const storage = memoryStorage();
+    saveBook(storage, friendBook);
+    expect(loadBook(storage)?.origin?.authorName).toBe("민준");
+  });
+});

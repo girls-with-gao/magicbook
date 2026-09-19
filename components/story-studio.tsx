@@ -4,10 +4,13 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { ChoicePicker } from "@/components/choice-picker";
+import { FriendPicker } from "@/components/friend-picker";
 import { StoryBookView } from "@/components/story-book";
 import { appendChapter, clearBook, isBookFull, loadBook, saveBook } from "@/lib/book-storage";
 import { demoSampleImagePath } from "@/lib/demo-data";
 import { combineStory } from "@/lib/story-normalize";
+import type { SeedBook } from "@/lib/seed-books";
+import { withParticle } from "@/lib/korean";
 import {
   MAX_CHAPTERS,
   OPENING_PAGES,
@@ -29,7 +32,8 @@ const stageLabels: Record<WizardStage, string> = {
   language: "언어 고르기",
   story: "이야기 보기",
   offline: "다시 그리기",
-  book: "동화책"
+  book: "동화책",
+  friends: "친구 이야기"
 };
 
 function browserStorage() {
@@ -311,6 +315,40 @@ export function StoryStudio() {
     setFinished(false);
   }
 
+  async function startFriendBook(seed: SeedBook) {
+    setBusy(true);
+    setError("");
+    try {
+      const chapters = await Promise.all(
+        seed.chapters.map(async (chapter) => ({
+          imageDataUrl: await shrinkImage(await sampleToPng(chapter.imagePath)),
+          analysis: chapter.analysis,
+          story: chapter.story,
+          author: seed.authorName
+        }))
+      );
+      const friendBook: StoryBook = {
+        id: `book-${Date.now()}`,
+        nickname: nickname.trim() || "아이",
+        age,
+        language,
+        chapters,
+        createdAt: new Date().toISOString(),
+        origin: { type: "friend", seedId: seed.id, authorName: seed.authorName }
+      };
+      const storage = browserStorage();
+      const result = storage ? saveBook(storage, friendBook) : { ok: true as const };
+      setBook(friendBook);
+      resetDrawing();
+      setStage("upload");
+      if (!result.ok) setError(result.message);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "친구 이야기를 가져오지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function continueBook() {
     resetDrawing();
     go("upload");
@@ -356,8 +394,13 @@ export function StoryStudio() {
           <p className="brand-kicker">DrawTale</p>
           <h1>그림이야기</h1>
         </div>
-        <div className="step-count" aria-label={stage === "book" ? "동화책 보기" : `전체 5단계 중 ${activeStep + 1}단계`}>
-          {stage === "book" ? "📖" : progressLabel}
+        <div
+          className="step-count"
+          aria-label={
+            stage === "book" ? "동화책 보기" : stage === "friends" ? "친구 이야기 고르기" : `전체 5단계 중 ${activeStep + 1}단계`
+          }
+        >
+          {stage === "book" ? "📖" : stage === "friends" ? "🤝" : progressLabel}
         </div>
       </header>
 
@@ -397,7 +440,7 @@ export function StoryStudio() {
         </section>
       ) : null}
 
-      {stage !== "book" ? (
+      {stage !== "book" && stage !== "friends" ? (
       <nav className="stepper" aria-label="이야기 만들기 진행 단계">
         {stageOrder.map((item, index) => (
           <div className={`step-dot ${index <= activeStep ? "active" : ""}`} key={item}>
@@ -436,6 +479,13 @@ export function StoryStudio() {
             </label>
             {imageName ? <p className="file-name">{imageName}</p> : null}
             <button className="text-button" type="button" onClick={useSample}>사진이 없나요? 예제로 시작하기</button>
+            {!book ? (
+              <button className="friend-entry" type="button" onClick={() => go("friends")}>
+                <span aria-hidden="true">🤝</span>
+                <b>친구가 쓰다 만 이야기, 내가 완성해볼까?</b>
+                <small>친구 이야기를 읽고 다음 장면을 그리면 함께 지은 책이 돼요</small>
+              </button>
+            ) : null}
 
             <div className="two-fields">
               <label>
@@ -462,6 +512,10 @@ export function StoryStudio() {
               {busy ? "그림 속 이야기를 찾고 있어요…" : "이야기 시작하기 →"}
             </button>
           </form>
+        ) : null}
+
+        {stage === "friends" ? (
+          <FriendPicker busy={busy} onPick={startFriendBook} onBack={() => go("upload")} />
         ) : null}
 
         {stage === "review" && analysis ? (
@@ -581,6 +635,13 @@ export function StoryStudio() {
               {language !== "en" ? <p>{story.offlinePromptKo}</p> : null}
               {language !== "ko" ? <p className="english-line">{story.offlinePromptEn}</p> : null}
             </div>
+            {book?.origin ? (
+              <p className="coauthor-line">
+                {bookFull
+                  ? `${book.origin.authorName}의 이야기를 ${withParticle(nickname, "이가", "가")} 완성했어요! 🎉`
+                  : `${book.origin.authorName}의 이야기를 ${withParticle(nickname, "이가", "가")} 이어 갔어요!`}
+              </p>
+            ) : null}
             {book && !bookFull ? (
               <>
                 <div className="paper-prompt">

@@ -79,6 +79,15 @@ export type StoryChapter = {
   imageDataUrl: string;
   analysis: DrawingAnalysis;
   story: BilingualStory;
+  /** 누가 쓴 편인지. 친구 이야기에서 이어 쓴 책에만 들어간다. */
+  author?: string;
+};
+
+/** 팀이 준비한 친구 이야기에서 시작한 책 */
+export type BookOrigin = {
+  type: "friend";
+  seedId: string;
+  authorName: string;
 };
 
 export type StoryBook = {
@@ -88,6 +97,7 @@ export type StoryBook = {
   language: LanguageMode;
   chapters: StoryChapter[];
   createdAt: string;
+  origin?: BookOrigin;
 };
 
 export type StoryRequest = {

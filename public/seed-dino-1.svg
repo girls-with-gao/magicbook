@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" rx="30" fill="#fdf3e0"/>
+  <g stroke="#6b4b2a" stroke-width="10" fill="#c98f52">
+    <rect x="60" y="250" width="180" height="420"/><rect x="760" y="250" width="180" height="420"/>
+  </g>
+  <g fill="#7fc4a6" stroke="#4a8b74" stroke-width="6">
+    <rect x="80" y="280" width="140" height="40"/><rect x="80" y="340" width="140" height="40"/><rect x="80" y="400" width="140" height="40"/>
+    <rect x="780" y="280" width="140" height="40"/><rect x="780" y="340" width="140" height="40"/>
+  </g>
+  <path d="M330 620 Q330 470 470 470 Q610 470 610 620Z" fill="#8fd26a" stroke="#4e8a35" stroke-width="12"/>
+  <path d="M610 560 Q700 540 730 600" fill="none" stroke="#4e8a35" stroke-width="14" stroke-linecap="round"/>
+  <path d="M330 560 Q250 520 250 440 Q330 420 380 500Z" fill="#8fd26a" stroke="#4e8a35" stroke-width="12"/>
+  <circle cx="300" cy="470" r="9" fill="#2f4f2f"/>
+  <rect x="420" y="520" width="120" height="90" rx="8" fill="#fff6d8" stroke="#6b4b2a" stroke-width="9"/>
+  <path d="M480 520 V610" stroke="#6b4b2a" stroke-width="7"/>
+  <text x="70" y="110" font-family="sans-serif" font-size="42" font-weight="700" fill="#5d4d43">도서관에 공룡이 살았다.</text>
+  <text x="70" y="168" font-family="sans-serif" font-size="42" font-weight="700" fill="#5d4d43">밤마다 책을 읽는대.</text>
+</svg>

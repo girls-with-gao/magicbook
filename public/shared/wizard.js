@@ -1,6 +1,6 @@
 // 단계 전환 규칙.
 
-/** @typedef {"upload"|"friends"|"review"|"language"|"story"|"offline"|"book"} WizardStage */
+/** @typedef {"upload"|"friends"|"review"|"language"|"story"|"offline"|"book"|"parent"} WizardStage */
 
 /** @type {Record<WizardStage, WizardStage[]>} */
 const transitions = {
@@ -9,8 +9,9 @@ const transitions = {
   review: ["upload", "language"],
   language: ["review", "story"],
   story: ["language", "offline"],
-  offline: ["upload", "book"],
-  book: ["upload"]
+  offline: ["upload", "book", "parent"],
+  book: ["upload", "parent"],
+  parent: ["book", "offline", "upload"]
 };
 
 /**

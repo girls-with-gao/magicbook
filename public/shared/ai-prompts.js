@@ -139,7 +139,8 @@ Return only this JSON object:
   ],
   "offlinePromptKo": "string",
   "offlinePromptEn": "string",
-  "summaryKo": "two short Korean sentences summarizing the whole ${STORY_PAGES}-page chapter, including the child's choice"
+  "summaryKo": "two short Korean sentences summarizing the whole ${STORY_PAGES}-page chapter, including the child's choice",
+  "parentNoteKo": "one warm Korean sentence for the parent: what the child's choice showed about them. Observe, never evaluate or score the child."
 }
 `.trim();
 }

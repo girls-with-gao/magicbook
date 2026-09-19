@@ -365,7 +365,7 @@ function render() {
     ${state.stage === "upload" && !state.book ? heroHtml() : ""}
     <div class="studio-shell stage-${state.stage}">
       ${state.stage === "upload" && state.book ? bookBannerHtml() : ""}
-      ${state.stage !== "book" && state.stage !== "friends" ? stepperHtml() : ""}
+      ${["book", "friends", "parent"].includes(state.stage) ? "" : stepperHtml()}
       <section class="studio-card">
         ${stageContentHtml()}
       </section>
@@ -448,7 +448,7 @@ function stepperHtml() {
 
 function stageContentHtml() {
   const backBtn =
-    state.stage !== "upload" && state.stage !== "offline" && !state.choosing && backTarget[state.stage]
+    !["upload", "offline", "parent"].includes(state.stage) && !state.choosing && backTarget[state.stage]
       ? `<button class="back-button" type="button" data-action="back" data-target="${backTarget[state.stage]}">← 이전</button>`
       : "";
   const demoBadge = state.demoMode ? `<p class="demo-badge">✦ API 키 없이 실행 중인 안전한 발표 데모예요.</p>` : "";
@@ -462,6 +462,7 @@ function stageContentHtml() {
   else if (state.stage === "story") body = state.choosing ? choiceHtml() : storyHtml();
   else if (state.stage === "offline") body = offlineHtml();
   else if (state.stage === "book") body = bookViewHtml();
+  else if (state.stage === "parent") body = parentRecordHtml();
 
   return `${backBtn}${demoBadge}${errorMsg}${body}`;
 }
@@ -883,16 +884,110 @@ function offlineHtml() {
         <div class="offline-actions">
           <button class="primary-button" type="button" data-action="continue-book">다음 장면 그림 올리기 →</button>
           <button class="secondary-button" type="button" data-action="view-book">지금까지 만든 책 보기</button>
+          <button class="secondary-button" type="button" data-action="view-parent">👩‍👧 부모 기록 보기</button>
           <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
         </div>`
           : `
         <div class="paper-prompt"><span>🎉</span><b>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
         <div class="offline-actions">
           <button class="primary-button" type="button" data-action="view-book">완성된 책 보기 📖</button>
+          <button class="secondary-button" type="button" data-action="view-parent">👩‍👧 부모 기록 보기</button>
           <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지 ✓</button>
         </div>`
       }
       ${state.finished ? `<p class="finish-message" role="status">잘했어요! 이제 종이와 색연필을 준비해볼까요?</p>` : ""}
+    </div>
+  `;
+}
+
+/* -------- 부모 기록 -------- */
+
+/**
+ * 아이 화면과 분리된 부모용 기록.
+ * 새로 만드는 데이터는 없고, 이미 저장된 편별 분위기·선택·단어를 모아서 보여 준다.
+ */
+function parentRecordHtml() {
+  const book = state.book;
+  if (!book || !book.chapters.length) return "";
+  const chapters = book.chapters;
+  const words = uniqueWords(book);
+  const places = uniqueValues(chapters.map((c) => c.analysis.place));
+  const moods = chapters.map((c) => c.analysis.mood).filter(Boolean);
+  const voiceCount = chapters.filter((c) => c.story.choice && c.story.choice.byVoice).length;
+  const last = chapters.at(-1);
+  const name = escapeHtml(book.nickname);
+
+  return `
+    <div class="parent-record">
+      <div class="book-toolbar-wizard">
+        <strong>👩‍👧 부모 기록</strong>
+        <div>
+          <button type="button" data-action="view-book">아이 화면(동화책) 보기</button>
+          <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
+        </div>
+      </div>
+
+      <div class="stage-heading">
+        <p class="eyebrow">오늘 ${name}의 창작 기록</p>
+        <h2>${name}의 상상은 이렇게 움직였어요</h2>
+      </div>
+
+      <div class="record-cards">
+        <div class="record-card"><b>${chapters.length}편</b><small>함께 만든 이야기</small></div>
+        <div class="record-card"><b>${chapters.filter((c) => c.story.choice).length}번</b><small>아이가 직접 고른 장면</small></div>
+        <div class="record-card"><b>${voiceCount}번</b><small>말로 들려준 생각</small></div>
+        <div class="record-card"><b>${words.length}개</b><small>새로 만난 영어 단어</small></div>
+      </div>
+
+      ${
+        moods.length
+          ? `<section class="record-block">
+        <h3>오늘의 감정 흐름</h3>
+        <ol class="mood-flow">${moods.map((mood) => `<li>${escapeHtml(mood)}</li>`).join("")}</ol>
+      </section>`
+          : ""
+      }
+
+      <section class="record-block">
+        <h3>편마다 남긴 기록</h3>
+        <ul class="record-list">
+          ${chapters
+            .map((chapter, index) => {
+              const choice = chapter.story.choice;
+              return `<li>
+                <p class="record-title">${index + 1}편 · ${escapeHtml(chapter.story.titleKo)}</p>
+                ${choice ? `<p class="record-choice">${choice.byVoice ? "🎤 말로" : "👆 골라서"} “${escapeHtml(choice.ko)}”</p>` : ""}
+                ${chapter.story.parentNoteKo ? `<p class="record-note">${escapeHtml(chapter.story.parentNoteKo)}</p>` : ""}
+              </li>`;
+            })
+            .join("")}
+        </ul>
+      </section>
+
+      ${
+        places.length
+          ? `<section class="record-block">
+        <h3>상상이 다녀온 곳</h3>
+        <p class="record-places">${escapeHtml(places.join("  →  "))}</p>
+      </section>`
+          : ""
+      }
+
+      ${
+        words.length
+          ? `<section class="record-block">
+        <h3>새로 만난 영어 단어</h3>
+        <ul class="word-cards">${words.map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}</ul>
+      </section>`
+          : ""
+      }
+
+      <section class="record-block record-question">
+        <h3>오늘 함께 나눌 질문</h3>
+        <p>${escapeHtml(last.story.offlinePromptKo)}</p>
+      </section>
+
+      <p class="record-privacy">이 기록은 이 기기에만 저장돼요. 서버로 보내지 않아요.</p>
     </div>
   `;
 }
@@ -1030,6 +1125,7 @@ function bookViewHtml() {
       <div class="book-toolbar-wizard">
         <strong>${index + 1} / ${spreads.length}</strong>
         <div>
+          <button type="button" data-action="view-parent">👩‍👧 부모 기록</button>
           <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
           <button type="button" data-action="new-book">새 책 시작</button>
         </div>
@@ -1427,6 +1523,9 @@ function onAction(event) {
     case "view-book":
       state.bookIndex = 0;
       go("book");
+      break;
+    case "view-parent":
+      go("parent");
       break;
     case "finish-today":
       state.finished = true;

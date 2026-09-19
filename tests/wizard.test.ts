@@ -15,7 +15,10 @@ describe("transitionStage", () => {
     ["upload", "book"],
     ["book", "upload"],
     ["upload", "friends"],
-    ["friends", "upload"]
+    ["friends", "upload"],
+    ["offline", "parent"],
+    ["book", "parent"],
+    ["parent", "book"]
   ])("%s에서 %s(으)로 이동한다", (from, to) => {
     expect(transitionStage(from, to)).toBe(to);
   });

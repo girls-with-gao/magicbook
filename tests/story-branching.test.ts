@@ -80,4 +80,18 @@ describe("normalize", () => {
     expect(parseOpening({ ...createDemoOpening(meta), pages: [] })).toBeNull();
     expect(parseOpening(createDemoOpening(meta))?.pages).toHaveLength(2);
   });
+
+  it("부모에게 남길 한 줄을 함께 만든다", () => {
+    const opening = createDemoOpening(meta);
+    const card = opening.choices[1];
+    const byCard = createDemoEnding({ ...meta, choice: { ko: card.ko, en: card.en, byVoice: false } });
+    expect(byCard.parentNoteKo).toContain(card.ko);
+    expect(byCard.parentNoteKo).toContain("골랐어요");
+
+    const byVoice = createDemoEnding({ ...meta, choice: { ko: "조개랑 숨바꼭질", en: "", byVoice: true } });
+    expect(byVoice.parentNoteKo).toContain("말했어요");
+
+    const story = combineStory(opening, byVoice, { ko: "조개랑 숨바꼭질", en: "", byVoice: true });
+    expect(story.parentNoteKo).toBe(byVoice.parentNoteKo);
+  });
 });

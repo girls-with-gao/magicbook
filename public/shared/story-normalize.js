@@ -83,7 +83,8 @@ export function normalizeEnding(value, meta) {
     pages: cleanPages(value.pages, fallback.pages, STORY_PAGES - OPENING_PAGES),
     offlinePromptKo: text(value.offlinePromptKo, fallback.offlinePromptKo),
     offlinePromptEn: text(value.offlinePromptEn, fallback.offlinePromptEn),
-    summaryKo: text(value.summaryKo, fallback.summaryKo)
+    summaryKo: text(value.summaryKo, fallback.summaryKo),
+    parentNoteKo: text(value.parentNoteKo, fallback.parentNoteKo)
   };
 }
 
@@ -148,6 +149,7 @@ export function combineStory(opening, ending, choice) {
     offlinePromptKo: ending.offlinePromptKo,
     offlinePromptEn: ending.offlinePromptEn,
     summaryKo: ending.summaryKo,
+    parentNoteKo: ending.parentNoteKo,
     choice
   };
 }

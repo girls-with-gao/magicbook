@@ -1,5 +1,5 @@
 import { MAX_CHAPTERS, OPENING_PAGES } from "./story-types.js";
-import { withParticle as childNameWithParticle } from "./korean.js";
+import { withParticle, withParticle as childNameWithParticle } from "./korean.js";
 
 /** @type {import('./story-types.js').DrawingAnalysis} */
 export const demoAnalysis = {
@@ -316,6 +316,7 @@ export function createDemoOpening({ nickname = "수민", age = 7, chapter = 1 } 
  * @returns {import('./story-types.js').StoryEnding}
  */
 export function createDemoEnding({ nickname = "수민", age = 7, chapter = 1, choice }) {
+  const name = nickname.trim() || "아이";
   const full = createDemoStory({ nickname, age, chapter });
   const [canonicalPage, lastPage] = full.pages.slice(OPENING_PAGES);
   const canonical = demoBranches[chapterIndex(chapter)].choices[0];
@@ -324,18 +325,22 @@ export function createDemoEnding({ nickname = "수민", age = 7, chapter = 1, ch
    * @param {string} summaryKo
    * @returns {import('./story-types.js').StoryEnding}
    */
-  const endingOf = (pages, summaryKo) => ({
+  const endingOf = (pages, summaryKo, parentNoteKo) => ({
     pages,
     offlinePromptKo: full.offlinePromptKo,
     offlinePromptEn: full.offlinePromptEn,
-    summaryKo
+    summaryKo,
+    parentNoteKo
   });
 
   if (!choice.byVoice && choice.ko === canonical.ko) {
-    return endingOf([canonicalPage, lastPage], full.summaryKo);
+    return endingOf(
+      [canonicalPage, lastPage],
+      full.summaryKo,
+      `${withParticle(name, "이는", "는")} 카드 중에서 “${choice.ko}”를 골랐어요. 궁금한 것을 먼저 확인해 보는 모습이었어요.`
+    );
   }
 
-  const name = nickname.trim() || "아이";
   const nameTopic = childNameWithParticle(name, "이는", "는");
   const choicePage = {
     ko: `“${choice.ko}!” ${nameTopic} 마음을 정했어요. 모두가 활짝 웃었어요.`,
@@ -348,5 +353,11 @@ export function createDemoEnding({ nickname = "수민", age = 7, chapter = 1, ch
     ],
     focus: canonicalPage.focus
   };
-  return endingOf([choicePage, lastPage], `${full.summaryKo} ${name}의 선택: ${choice.ko}.`);
+  return endingOf(
+    [choicePage, lastPage],
+    `${full.summaryKo} ${name}의 선택: ${choice.ko}.`,
+    choice.byVoice
+      ? `${withParticle(name, "이가", "가")} 직접 “${choice.ko}”라고 말했어요. 자기 생각을 먼저 말로 꺼내 보았어요.`
+      : `${withParticle(name, "이가", "가")} “${choice.ko}”를 골랐어요. 이야기를 자기 방향으로 끌고 갔어요.`
+  );
 }

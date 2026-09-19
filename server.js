@@ -662,7 +662,13 @@ async function serveStatic(req, res) {
 
   try {
     const file = await readFile(filePath);
-    res.writeHead(200, { "content-type": mimeTypes[extname(filePath)] || "application/octet-stream" });
+    const type = extname(filePath);
+    // 화면 코드는 항상 최신을 쓰도록 캐시를 막는다(배포 직후 옛 화면이 남는 것도 막아 준다).
+    const noCache = [".html", ".js", ".css"].includes(type);
+    res.writeHead(200, {
+      "content-type": mimeTypes[type] || "application/octet-stream",
+      "cache-control": noCache ? "no-cache" : "public, max-age=3600"
+    });
     res.end(file);
   } catch {
     res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });

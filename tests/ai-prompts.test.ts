@@ -33,6 +33,7 @@ describe("AI prompts", () => {
     expect(prompt).toContain("조개에게 노래 불러주기");
     expect(prompt).toContain("offline drawing prompt");
     expect(prompt).toContain("summaryKo");
+    expect(prompt).toContain("parentNoteKo");
   });
 
   it("말로 한 선택은 음성 인식 오류 가능성을 알려준다", () => {

@@ -6,9 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "vitest run"
+    "test": "vitest run",
+    "video": "node --env-file=.env index.ts",
+    "seed-images": "node --env-file=.env scripts/generate-seed-images.ts",
+    "seed-art": "node --env-file=.env scripts/generate-seed-art.ts",
+    "seed-compose": "node scripts/compose-seed-art.ts"
   },
   "dependencies": {
+    "@higgsfield/client": "^0.2.6",
     "next": "16.3.3",
     "react": "19.3.0",
     "react-dom": "19.3.0"

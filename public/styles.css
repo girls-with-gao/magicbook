@@ -41,6 +41,43 @@ button {
   min-height: 100vh;
 }
 
+/* 아이 화면 어디서나 보이는 머리말. "부모" 버튼은 작고 회색 톤으로 두어
+   아이 화면의 코랄 버튼과 확실히 다르게 보이게 한다. */
+.brand-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px clamp(16px, 4vw, 32px);
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 253, 247, 0.92);
+}
+
+.brand-mark {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.parent-entry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f2f3f5;
+  color: #565f6b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.parent-entry-button:hover {
+  background: #e7e9ec;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
@@ -1847,9 +1884,23 @@ button.choice-card:active {
 }
 
 /* ---------- 부모 기록 ---------- */
+/* 아이 화면과 다른 톤: 흰 배경에 가깝게, 카드 모서리는 덜 둥글게, 글자는 작고
+   줄간격은 넓게. 큰 이모지·기울어진 요소·코랄 버튼은 쓰지 않고 강조색은 초록만 쓴다. */
+
+.studio-shell.stage-parent .studio-card {
+  border-radius: 12px;
+  background: #fffefc;
+  box-shadow: none;
+}
 
 .parent-record {
   padding: clamp(18px, 4vw, 40px);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.parent-record .stage-heading h2 {
+  font-size: clamp(22px, 4vw, 28px);
 }
 
 .record-cards {
@@ -1863,7 +1914,7 @@ button.choice-card:active {
   display: grid;
   gap: 2px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--green-soft, #e8f6f1);
   text-align: center;
 }
@@ -1901,8 +1952,8 @@ button.choice-card:active {
 .mood-flow li {
   padding: 8px 14px;
   border-radius: 999px;
-  background: #fff6d8;
-  color: #7a5814;
+  background: var(--green-soft, #e8f6f1);
+  color: var(--green-dark, #0f594c);
   font-size: 13px;
   font-weight: 800;
 }
@@ -1910,7 +1961,7 @@ button.choice-card:active {
 .mood-flow li + li::before {
   content: "→";
   margin-right: 8px;
-  color: #b99a52;
+  color: #9db8ae;
 }
 
 .record-list {
@@ -1924,7 +1975,7 @@ button.choice-card:active {
 .record-list li {
   padding: 16px 18px;
   border: 1px solid var(--line, #e7ddd0);
-  border-radius: 18px;
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -1936,7 +1987,7 @@ button.choice-card:active {
 
 .record-choice {
   margin: 0 0 6px;
-  color: var(--coral-dark, #c95d3e);
+  color: var(--green-dark, #0f594c);
   font-size: 13px;
   font-weight: 800;
 }
@@ -1951,16 +2002,16 @@ button.choice-card:active {
 .record-places {
   margin: 0;
   padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--sky, #dff3ff);
-  color: #2f4f6a;
+  border-radius: 12px;
+  background: var(--green-soft, #e8f6f1);
+  color: var(--green-dark, #0f594c);
   font-weight: 800;
   line-height: 1.6;
 }
 
 .record-question {
   padding: 18px 20px;
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--green-soft, #e8f6f1);
 }
 

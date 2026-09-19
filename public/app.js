@@ -75,6 +75,10 @@ const state = {
       state.language = saved.language;
     }
   }
+  // #parent로 바로 들어오면(새로고침 포함) 부모 화면부터 연다. 보여 줄 책이 없으면 무시한다.
+  if (window.location.hash === "#parent" && state.book && state.book.chapters.length) {
+    state.stage = "parent";
+  }
   render();
 })();
 
@@ -90,8 +94,24 @@ function chapterNumber() {
 
 function go(next) {
   state.error = "";
+  const wasParent = state.stage === "parent";
   state.stage = transitionStage(state.stage, next);
+  if (state.stage === "parent") setParentHash(true);
+  else if (wasParent) setParentHash(false);
   render();
+}
+
+/** 부모 화면에 들어가고 나갈 때 주소의 #parent를 맞춘다. 새로고침해도 부모 화면이 유지된다. */
+function setParentHash(active) {
+  try {
+    if (active) {
+      if (window.location.hash !== "#parent") window.location.hash = "parent";
+    } else if (window.location.hash === "#parent") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  } catch {
+    // 주소를 못 바꿔도 화면 자체는 그대로 동작한다.
+  }
 }
 
 function setError(message) {
@@ -362,6 +382,7 @@ async function ensurePageArt(index) {
 
 function render() {
   root.innerHTML = `
+    ${brandBarHtml()}
     ${state.stage === "upload" && !state.book ? heroHtml() : ""}
     <div class="studio-shell stage-${state.stage}">
       ${state.stage === "upload" && state.book ? bookBannerHtml() : ""}
@@ -385,6 +406,21 @@ function render() {
 function renderStoryImageOnly() {
   // 이미지 비동기 로드 결과만 반영하려고 전체를 다시 그린다(간단함 우선).
   if (state.stage === "story" && !state.choosing) render();
+}
+
+/**
+ * 아이 화면 어디서나 보이는 머리말. 책이 하나라도 있을 때만 "부모" 버튼을 보여 준다
+ * — 보여 줄 기록이 없으면 굳이 버튼을 둘 이유가 없다. 아이 화면 버튼과 다르게
+ * 작고 회색 톤으로 두어, 눈에 덜 띄고 아이가 실수로 누르기 어렵게 한다.
+ */
+function brandBarHtml() {
+  const showParent = Boolean(state.book && state.book.chapters.length);
+  return `
+    <header class="brand-bar">
+      <span class="brand-mark">📖 그림이야기</span>
+      ${showParent ? `<button type="button" class="parent-entry-button" data-action="view-parent">👩‍👧 부모</button>` : ""}
+    </header>
+  `;
 }
 
 function heroHtml() {
@@ -1125,7 +1161,6 @@ function bookViewHtml() {
       <div class="book-toolbar-wizard">
         <strong>${index + 1} / ${spreads.length}</strong>
         <div>
-          <button type="button" data-action="view-parent">👩‍👧 부모 기록</button>
           <button type="button" data-action="print-book">🖨️ 인쇄·PDF 저장</button>
           <button type="button" data-action="new-book">새 책 시작</button>
         </div>

@@ -4,11 +4,11 @@
 
 /** @type {Record<WizardStage, WizardStage[]>} */
 const transitions = {
-  upload: ["review", "book", "friends"],
-  friends: ["upload"],
-  review: ["upload", "language"],
-  language: ["review", "story"],
-  story: ["language", "offline"],
+  upload: ["review", "book", "friends", "parent"],
+  friends: ["upload", "parent"],
+  review: ["upload", "language", "parent"],
+  language: ["review", "story", "parent"],
+  story: ["language", "offline", "parent"],
   offline: ["upload", "book", "parent"],
   book: ["upload", "parent"],
   parent: ["book", "offline", "upload"]

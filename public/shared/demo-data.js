@@ -122,8 +122,8 @@ export function createDemoStory({ nickname = "수민", age: _age = 7, chapter = 
           ko: `${nameTopic} 조개 속으로 쏙 들어갔어요. 그곳엔 작은 바다 마을이 있었어요.`,
           en: `${name} slipped into the shell and found a tiny sea village.`,
           words: [
-            { ko: "마을", en: "village" },
-            { ko: "작은", en: "tiny" }
+            { ko: "조개", en: "shell" },
+            { ko: "마을", en: "village" }
           ],
           focus: { x: 50, y: 55 }
         },

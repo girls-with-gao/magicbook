@@ -3,6 +3,14 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildAnalysisPrompt, buildEndingPrompt, buildOpeningPrompt } from "./public/shared/ai-prompts.js";
+import { createDemoEnding, createDemoOpening, demoAnalysis, demoAnalysisFor } from "./public/shared/demo-data.js";
+import { validateImageDataUrl } from "./public/shared/image-validation.js";
+import { hasOpenAIKey, requestOpenAIJson } from "./public/shared/openai.js";
+import { getPageFraming } from "./public/shared/page-composition.js";
+import { parsePreviousChapters } from "./public/shared/previous-chapters.js";
+import { normalizeEnding, normalizeOpening, parseChildChoice, parseOpening } from "./public/shared/story-normalize.js";
+
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(root, "public");
 await loadEnv();
@@ -457,6 +465,182 @@ function findGeneratedImage(value) {
   return "";
 }
 
+/* ------------------------------------------------------------------ */
+/* 2단계: 5단계 아이 주도 흐름을 위한 새 API. public/shared의 공용 모듈을 쓴다. */
+/* ------------------------------------------------------------------ */
+
+function strings(value) {
+  return Array.isArray(value) ? value.filter((item) => typeof item === "string").slice(0, 5) : [];
+}
+
+function normalizeAnalysis(value) {
+  const analysis = value && typeof value === "object" ? value : {};
+  return {
+    characters: strings(analysis.characters).length ? strings(analysis.characters) : demoAnalysis.characters,
+    place: typeof analysis.place === "string" && analysis.place.trim() ? analysis.place.trim() : demoAnalysis.place,
+    objects: strings(analysis.objects).length ? strings(analysis.objects) : demoAnalysis.objects,
+    mood: typeof analysis.mood === "string" && analysis.mood.trim() ? analysis.mood.trim() : demoAnalysis.mood,
+    diaryText:
+      typeof analysis.diaryText === "string" && analysis.diaryText.trim()
+        ? analysis.diaryText.trim()
+        : demoAnalysis.diaryText
+  };
+}
+
+function validAnalysis(value) {
+  if (!value || typeof value !== "object") return false;
+  return (
+    Array.isArray(value.characters) &&
+    Array.isArray(value.objects) &&
+    typeof value.place === "string" &&
+    typeof value.mood === "string" &&
+    typeof value.diaryText === "string"
+  );
+}
+
+async function handleAnalyze(req, res) {
+  try {
+    const body = await readBody(req);
+    const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
+    const validation = validateImageDataUrl(imageDataUrl);
+    if (!validation.ok) {
+      sendJson(res, 400, { error: validation.message });
+      return;
+    }
+
+    const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
+    const age = Math.min(12, Math.max(5, Number(body.age) || 7));
+    const chapter = Number(body.chapter) || 1;
+
+    if (!hasOpenAIKey()) {
+      sendJson(res, 200, { analysis: demoAnalysisFor(chapter), demoMode: true });
+      return;
+    }
+
+    const analysis = await requestOpenAIJson({ prompt: buildAnalysisPrompt({ nickname, age }), imageDataUrl });
+    sendJson(res, 200, { analysis: normalizeAnalysis(analysis), demoMode: false });
+  } catch (error) {
+    sendJson(res, 500, { error: "그림을 읽는 중 문제가 생겼어요. 입력한 내용은 그대로니 다시 시도해주세요." });
+  }
+}
+
+/**
+ * 이야기는 두 번에 나눠 만든다.
+ * - phase "opening": 앞 2페이지 + 아이가 고를 갈림길 카드
+ * - phase "ending": 아이가 고른(또는 말한) 선택을 반영한 뒤 2페이지
+ */
+async function handleStory(req, res) {
+  try {
+    const body = await readBody(req);
+    if (!validAnalysis(body.analysis)) {
+      sendJson(res, 400, { error: "부모님이 확인한 그림일기 내용이 필요해요." });
+      return;
+    }
+
+    const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
+    const age = Math.min(12, Math.max(5, Number(body.age) || 7));
+    const previousChapters = parsePreviousChapters(body.previousChapters);
+    const chapter = previousChapters.length + 1;
+    const meta = { nickname, age, chapter };
+    const base = { nickname, age, analysis: body.analysis, previousChapters };
+
+    if (body.phase === "ending") {
+      const opening = parseOpening(body.opening);
+      const choice = parseChildChoice(body.choice);
+      if (!opening || !choice) {
+        sendJson(res, 400, { error: "앞 이야기와 아이의 선택이 필요해요." });
+        return;
+      }
+
+      if (!hasOpenAIKey()) {
+        sendJson(res, 200, { ending: createDemoEnding({ ...meta, choice }), demoMode: true });
+        return;
+      }
+      const generated = await requestOpenAIJson({ prompt: buildEndingPrompt({ ...base, opening, choice }) });
+      sendJson(res, 200, { ending: normalizeEnding(generated, { ...meta, choice }), demoMode: false });
+      return;
+    }
+
+    if (!hasOpenAIKey()) {
+      sendJson(res, 200, { opening: createDemoOpening(meta), demoMode: true });
+      return;
+    }
+    const generated = await requestOpenAIJson({ prompt: buildOpeningPrompt(base) });
+    sendJson(res, 200, { opening: normalizeOpening(generated, meta), demoMode: false });
+  } catch (error) {
+    sendJson(res, 500, { error: "이야기를 만드는 중 문제가 생겼어요. 확인한 내용은 그대로니 다시 시도해주세요." });
+  }
+}
+
+/** 새 흐름의 배경 프롬프트. 팀원 코드의 buildImagePrompt와 같은 원칙(배경만, 주인공은 나중에 오려 붙임)을
+ * 새 DrawingAnalysis 스키마(characters/place/objects/mood)에 맞춰 쓴다. */
+function buildPageArtPrompt({ nickname, analysis, titleKo }, page, index, framing, textSide) {
+  const framingDirection = {
+    close: "Use a character-focused composition with room around the character for a storybook text panel.",
+    medium: "Use a medium composition that shows the character and the main action around it.",
+    wide: "Use a wide establishing composition where the location and atmosphere are clearly visible; do not fill the frame with a character."
+  }[framing];
+  return `
+Create a background-only illustration for one page of a Korean children's picture book.
+
+The app will place the child's original drawing on top of this background later. Do not draw, recreate, imply, duplicate, silhouette, or include any main character, animal, person, mascot, or creature in the background.
+Do not include a character-shaped empty outline or a second version of the protagonist.
+
+Child: ${nickname || "아이"}
+Characters in the story: ${(analysis.characters || []).join(", ") || "the child and friends"}
+Place: ${analysis.place || "a warm imaginative world"}
+Objects: ${(analysis.objects || []).join(", ") || "none specified"}
+Mood: ${analysis.mood || "warm and curious"}
+Story title: ${titleKo || "그림이야기"}
+Page ${index + 1} Korean text: ${page.ko || ""}
+
+Page ${index + 1} composition:
+- Framing: ${framing}
+- ${framingDirection}
+- Leave a calm, low-detail area on the ${textSide === "left" ? "left" : "right"} side for Korean story text.
+- Keep the main action area on the opposite side from the text area.
+
+Visual direction:
+- Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
+- Use concrete visual details from the place, objects, and mood above.
+- Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
+- The app will place the original child drawing and Korean text over this background, so keep the requested text area visually simple.
+- Safe, cozy, age-appropriate, no scary or violent elements.
+`;
+}
+
+/** 팀원 코드 유지: 보고 있는 쪽 하나만 삽화를 만든다. 실패하면 500이 아니라
+ * 빈 imageDataUrl로 응답해, 화면에서는 오려낸 주인공만으로 자연스럽게 대체한다. */
+async function handlePageArt(req, res) {
+  try {
+    const body = await readBody(req);
+    if (!validAnalysis(body.analysis)) {
+      sendJson(res, 400, { error: "부모님이 확인한 그림일기 내용이 필요해요." });
+      return;
+    }
+
+    const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
+    const page = body.page && typeof body.page === "object" ? body.page : {};
+    const pageIndex = Math.max(0, Number(body.pageIndex) || 0);
+    const titleKo = typeof body.titleKo === "string" ? body.titleKo : "";
+    const { framing, textSide } = getPageFraming(pageIndex);
+
+    if (!hasOpenAIKey()) {
+      sendJson(res, 200, { imageDataUrl: "", demoMode: true, framing, textSide });
+      return;
+    }
+
+    const prompt = buildPageArtPrompt({ nickname, analysis: body.analysis, titleKo }, page, pageIndex, framing, textSide);
+    const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+    const tool = buildImageTool(imageModel, false);
+    const imageDataUrl = await runImageGeneration(process.env.OPENAI_API_KEY, prompt, [], tool);
+    sendJson(res, 200, { imageDataUrl, demoMode: false, framing, textSide });
+  } catch (error) {
+    // 삽화 생성 실패는 화면을 막지 않는다. 오려낸 주인공 그림만으로도 쪽을 볼 수 있어야 한다.
+    sendJson(res, 200, { imageDataUrl: "", demoMode: false, error: "삽화를 만들지 못했어요. 그림만 보여드릴게요." });
+  }
+}
+
 async function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const requested = url.pathname === "/" ? "/index.html" : url.pathname;
@@ -488,6 +672,21 @@ const server = createServer(async (req, res) => {
     } catch (error) {
       sendJson(res, 500, { error: error.message });
     }
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/analyze") {
+    await handleAnalyze(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/story") {
+    await handleStory(req, res);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/page-art") {
+    await handlePageArt(req, res);
     return;
   }
 

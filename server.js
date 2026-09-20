@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildAnalysisPrompt, buildEndingPrompt, buildOpeningPrompt } from "./public/shared/ai-prompts.js";
 import { createDemoEnding, createDemoOpening, demoAnalysis, demoAnalysisFor } from "./public/shared/demo-data.js";
 import { validateImageDataUrl } from "./public/shared/image-validation.js";
+import { buildHiggsfieldPagePrompt, generateHiggsfieldPageImage, hasHiggsfieldCredentials } from "./lib/higgsfield.js";
 import { hasOpenAIKey, requestOpenAIJson } from "./public/shared/openai.js";
 import { getPageFraming } from "./public/shared/page-composition.js";
 import { parsePreviousChapters } from "./public/shared/previous-chapters.js";
@@ -50,6 +51,12 @@ function sendJson(res, status, payload) {
 }
 
 async function readBody(req) {
+  if (req.body !== undefined) {
+    if (typeof req.body === "string" || Buffer.isBuffer(req.body)) {
+      return JSON.parse(String(req.body) || "{}");
+    }
+    return req.body && typeof req.body === "object" ? req.body : {};
+  }
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
@@ -349,121 +356,21 @@ async function generatePageImages(payload, story) {
 }
 
 async function generatePageImage(payload, story, page, index) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const prompt = buildImagePrompt(payload, story, page, index);
-  const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
-  const primaryTool = buildImageTool(imageModel, false);
-  return runImageGeneration(apiKey, prompt, [], primaryTool);
-}
-
-async function runImageGeneration(apiKey, prompt, imageUrls, tool) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: prompt },
-            ...imageUrls.map((imageUrl) => ({ type: "input_image", image_url: imageUrl }))
-          ]
-        }
-      ],
-      tools: [tool]
-    })
+  const analysis = payload.analysis || {};
+  const composition = getPageFraming(index);
+  const prompt = buildHiggsfieldPagePrompt({
+    nickname: payload.nickname || payload.childName,
+    characters: analysis.characters || [payload.characterName || payload.characterIdentity].filter(Boolean),
+    place: analysis.place || payload.theme,
+    objects: analysis.objects || [],
+    mood: analysis.mood,
+    title: story.titleKo || story.title,
+    pageText: page.ko,
+    pageNumber: index + 1,
+    framing: page.framing || composition.framing,
+    textSide: page.textSide || composition.textSide
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    if (tool.input_fidelity) {
-      return runImageGeneration(apiKey, prompt, imageUrls, buildImageTool("gpt-image-1-mini"));
-    }
-    throw new Error(`image generation failed: ${response.status} ${errorText}`);
-  }
-
-  const data = await response.json();
-  const base64 = findGeneratedImage(data);
-  if (!base64) throw new Error("image generation response did not include an image");
-  return `data:image/png;base64,${base64}`;
-}
-
-function buildImageTool(model, useInputFidelity = true) {
-  const tool = {
-    type: "image_generation",
-    model,
-    quality: "low",
-    size: "1024x1024",
-    output_format: "png"
-  };
-
-  if (model === "gpt-image-1" && useInputFidelity) {
-    tool.input_fidelity = "high";
-  }
-
-  return tool;
-}
-
-function buildImagePrompt({ childName, characterIdentity, characterName, characterDetails, theme, diaryText }, story, page, index) {
-  const hero = [characterName, characterIdentity].filter(Boolean).join(", ") || "the child drawn character";
-  const framing = normalizeFraming(page.framing);
-  const framingDirection = {
-    close: "Use a character-focused composition with room around the character for a storybook text panel.",
-    medium: "Use a medium composition that shows the character and the main action around it.",
-    wide: "Use a wide establishing composition where the location and atmosphere are clearly visible; do not fill the frame with a character."
-  }[framing];
-  return `
-Create a background-only illustration for one page of a Korean children's picture book.
-
-The app will place the child's original drawing on top of this background later. Do not draw, recreate, imply, duplicate, silhouette, or include any main character, animal, person, mascot, or creature in the background.
-Do not include a character-shaped empty outline or a second version of the protagonist.
-
-Child: ${childName || "아이"}
-Character: ${hero}
-Character details: ${characterDetails || "preserve the uploaded drawing's visible features"}
-Theme: ${theme || "warm adventure"}
-Diary context: ${diaryText || "none"}
-Story title: ${story.title || "MagicBook"}
-Page ${index + 1} Korean text: ${page.ko}
-
-Page ${index + 1} composition:
-- Framing: ${framing}
-- ${framingDirection}
-- Leave a calm, low-detail area on the ${page.textSide === "left" ? "left" : "right"} side for Korean story text.
-- Keep the main action area on the opposite side from the text area.
-
-Visual direction:
-- Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
-- Use concrete visual details from the diary and story page, such as a museum hall, dinosaur skeleton, display case, footprints, trees, castle rooms, or ocean waves.
-- Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
-- The app will place the original child drawing and Korean text over this background, so keep the requested text area visually simple.
-- Safe, cozy, age-appropriate, no scary or violent elements.
-`;
-}
-
-function findGeneratedImage(value) {
-  if (!value || typeof value !== "object") return "";
-  if (typeof value.result === "string") return value.result;
-  if (typeof value.b64_json === "string") return value.b64_json;
-  if (typeof value.image_base64 === "string") return value.image_base64;
-
-  for (const item of Object.values(value)) {
-    if (Array.isArray(item)) {
-      for (const child of item) {
-        const found = findGeneratedImage(child);
-        if (found) return found;
-      }
-    } else if (item && typeof item === "object") {
-      const found = findGeneratedImage(item);
-      if (found) return found;
-    }
-  }
-
-  return "";
+  return generateHiggsfieldPageImage({ imageDataUrl: payload.imageDataUrl, prompt });
 }
 
 /* ------------------------------------------------------------------ */
@@ -576,52 +483,19 @@ async function handleStory(req, res) {
   }
 }
 
-/** 새 흐름의 배경 프롬프트. 팀원 코드의 buildImagePrompt와 같은 원칙(배경만, 주인공은 나중에 오려 붙임)을
- * 새 DrawingAnalysis 스키마(characters/place/objects/mood)에 맞춰 쓴다. */
-function buildPageArtPrompt({ nickname, analysis, titleKo }, page, index, framing, textSide) {
-  const framingDirection = {
-    close: "Use a character-focused composition with room around the character for a storybook text panel.",
-    medium: "Use a medium composition that shows the character and the main action around it.",
-    wide: "Use a wide establishing composition where the location and atmosphere are clearly visible; do not fill the frame with a character."
-  }[framing];
-  return `
-Create a background-only illustration for one page of a Korean children's picture book.
-
-The app will place the child's original drawing on top of this background later. Do not draw, recreate, imply, duplicate, silhouette, or include any main character, animal, person, mascot, or creature in the background.
-Do not include a character-shaped empty outline or a second version of the protagonist.
-
-Child: ${nickname || "아이"}
-Characters in the story: ${(analysis.characters || []).join(", ") || "the child and friends"}
-Place: ${analysis.place || "a warm imaginative world"}
-Objects: ${(analysis.objects || []).join(", ") || "none specified"}
-Mood: ${analysis.mood || "warm and curious"}
-Story title: ${titleKo || "그림이야기"}
-Page ${index + 1} Korean text: ${page.ko || ""}
-
-Page ${index + 1} composition:
-- Framing: ${framing}
-- ${framingDirection}
-- Leave a calm, low-detail area on the ${textSide === "left" ? "left" : "right"} side for Korean story text.
-- Keep the main action area on the opposite side from the text area.
-
-Visual direction:
-- Style similar to a warm printed children's picture book: soft colored pencil, watercolor, gentle texture, bright but not flashy.
-- Keep colors soft and slightly desaturated so a child's bright crayon drawing placed on top stands out clearly.
-- Depth of field is welcome: keep the far background softer and the standing area crisper.
-- Use concrete visual details from the place, objects, and mood above.
-- Do not draw any readable text, letters, labels, logos, captions, speech bubbles, or page numbers inside the image.
-- The app will place the original child drawing and Korean text over this background, so keep the requested text area visually simple.
-- Safe, cozy, age-appropriate, no scary or violent elements.
-`;
-}
-
-/** 팀원 코드 유지: 보고 있는 쪽 하나만 삽화를 만든다. 실패하면 500이 아니라
- * 빈 imageDataUrl로 응답해, 화면에서는 오려낸 주인공만으로 자연스럽게 대체한다. */
+/** 현재 쪽과 다음 쪽을 Higgsfield 이미지 편집 모델로 만든다. */
 async function handlePageArt(req, res) {
   try {
     const body = await readBody(req);
     if (!validAnalysis(body.analysis)) {
       sendJson(res, 400, { error: "부모님이 확인한 그림일기 내용이 필요해요." });
+      return;
+    }
+
+    const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
+    const validation = validateImageDataUrl(imageDataUrl);
+    if (!validation.ok) {
+      sendJson(res, 400, { error: validation.message });
       return;
     }
 
@@ -631,20 +505,29 @@ async function handlePageArt(req, res) {
     const titleKo = typeof body.titleKo === "string" ? body.titleKo : "";
     const { framing, textSide } = getPageFraming(pageIndex);
 
-    if (!hasOpenAIKey()) {
-      sendJson(res, 200, { imageDataUrl: "", demoMode: true, framing, textSide });
+    if (!hasHiggsfieldCredentials()) {
+      sendJson(res, 503, { error: "Higgsfield 인증 정보가 설정되지 않았어요.", framing, textSide });
       return;
     }
 
-    const prompt = buildPageArtPrompt({ nickname, analysis: body.analysis, titleKo }, page, pageIndex, framing, textSide);
-    const imageModel = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
-    const tool = buildImageTool(imageModel, false);
-    const imageDataUrl = await runImageGeneration(process.env.OPENAI_API_KEY, prompt, [], tool);
-    sendJson(res, 200, { imageDataUrl, demoMode: false, framing, textSide });
+    const analysis = normalizeAnalysis(body.analysis);
+    const prompt = buildHiggsfieldPagePrompt({
+      nickname,
+      characters: analysis.characters,
+      place: analysis.place,
+      objects: analysis.objects,
+      mood: analysis.mood,
+      title: titleKo,
+      pageText: page.ko,
+      pageNumber: pageIndex + 1,
+      framing,
+      textSide
+    });
+    const generatedImage = await generateHiggsfieldPageImage({ imageDataUrl, prompt });
+    sendJson(res, 200, { imageDataUrl: generatedImage, demoMode: false, framing, textSide });
   } catch (error) {
-    // 삽화 생성 실패는 화면을 막지 않는다. 오려낸 주인공 그림만으로도 쪽을 볼 수 있어야 한다.
     console.error("page art failed:", error);
-    sendJson(res, 200, { imageDataUrl: "", demoMode: false, error: "삽화를 만들지 못했어요. 그림만 보여드릴게요." });
+    sendJson(res, 502, { error: "삽화를 만들지 못했어요. 잠시 후 다시 시도해 주세요." });
   }
 }
 
@@ -676,8 +559,10 @@ async function serveStatic(req, res) {
   }
 }
 
-const server = createServer(async (req, res) => {
-  if (req.method === "POST" && req.url === "/api/generate-story") {
+export async function handleRequest(req, res) {
+  const pathname = new URL(req.url || "/", "http://localhost").pathname.replace(/\/+$/, "") || "/";
+
+  if (req.method === "POST" && pathname === "/api/generate-story") {
     try {
       const payload = await readBody(req);
       const story = await generateStory(payload);
@@ -688,17 +573,17 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/analyze") {
+  if (req.method === "POST" && pathname === "/api/analyze") {
     await handleAnalyze(req, res);
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/story") {
+  if (req.method === "POST" && pathname === "/api/story") {
     await handleStory(req, res);
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/page-art") {
+  if (req.method === "POST" && pathname === "/api/page-art") {
     await handlePageArt(req, res);
     return;
   }
@@ -710,8 +595,11 @@ const server = createServer(async (req, res) => {
 
   res.writeHead(405);
   res.end("Method not allowed");
-});
+}
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`MagicBook is running at http://localhost:${port}`);
-});
+if (process.env.VERCEL !== "1") {
+  const server = createServer(handleRequest);
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`MagicBook is running at http://localhost:${port}`);
+  });
+}

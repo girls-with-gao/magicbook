@@ -8,9 +8,9 @@
 
 /** @type {{framing: Framing, textSide: TextSide}[]} */
 export const compositionDefaults = [
-  { framing: "close", textSide: "right" },
   { framing: "wide", textSide: "right" },
-  { framing: "medium", textSide: "left" },
+  { framing: "medium", textSide: "right" },
+  { framing: "close", textSide: "left" },
   { framing: "wide", textSide: "left" }
 ];
 

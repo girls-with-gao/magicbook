@@ -32,8 +32,10 @@ Vercel 배포 화면의 **Environment Variables** 영역에서 다음을 추가�
 
 - Name: `OPENAI_API_KEY`
 - Value: 본인의 OpenAI API 키
+- Name: `HF_CREDENTIALS`
+- Value: Higgsfield API의 `KEY_ID:KEY_SECRET`
 
-키를 GitHub 파일이나 채팅방에 붙여넣지 않는다. API 키가 없으면 이 단계를 건너뛰어도 되며, 발표용 예제 모드로 작동한다.
+두 키를 GitHub 파일이나 채팅방에 붙여넣지 않는다. 삽화 생성은 Higgsfield 키가 필요하다.
 
 ## 4. 배포하기
 

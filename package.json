@@ -2,6 +2,7 @@
   "name": "magicbook",
   "version": "0.2.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env server.js",
     "demo": "OPENAI_API_KEY= node server.js",

@@ -45,6 +45,7 @@ const state = {
   nickname: "수민",
   age: 7,
   imageDataUrl: "",
+  imageReferenceDataUrl: "",
   imageName: "",
   privacyChecked: false,
   analysis: null,
@@ -415,13 +416,14 @@ async function ensurePageArt(index) {
     const data = await apiPost("/api/page-art", {
       nickname: state.nickname.trim(),
       analysis: state.analysis,
+      imageDataUrl: state.imageReferenceDataUrl || state.imageDataUrl,
       page,
       pageIndex: index,
       titleKo
     });
     state.pageArt[index] = { imageDataUrl: data.imageDataUrl || "", framing: data.framing, textSide: data.textSide };
   } catch {
-    state.pageArt[index] = { imageDataUrl: "" };
+    state.pageArt[index] = { imageDataUrl: "", error: true };
   }
   renderStoryImageOnly();
 }
@@ -590,7 +592,7 @@ function homeHtml() {
         </button>
       </div>
 
-      <p class="privacy-note home-note">그림과 책은 이 브라우저에만 남아요. 서버에는 저장하지 않아요.</p>
+      <p class="privacy-note home-note">그림은 OpenAI 분석과 Higgsfield 삽화 생성에 전송돼요. 앱 서버에는 저장하지 않고, 책은 이 브라우저에만 보관돼요.</p>
     </div>
   `;
 }
@@ -645,9 +647,9 @@ function uploadHtml() {
       <div class="trust-box">
         <label class="privacy-check">
           <input type="checkbox" id="privacy-input" ${state.privacyChecked ? "checked" : ""} />
-          <span>얼굴·학교명·주소·연락처가 보이지 않는 그림인지 확인했어요.</span>
+          <span>개인정보가 보이지 않고, 외부 AI 처리 안내를 확인했어요.</span>
         </label>
-        <p class="privacy-note">서버에는 저장하지 않아요. 만든 책은 이 기기 브라우저에만 보관되고 언제든 지울 수 있어요.</p>
+        <p class="privacy-note">그림은 이야기 분석을 위해 OpenAI에, 삽화 생성을 위해 Higgsfield에 전송돼요. 앱 서버에는 저장하지 않으며, 만든 책은 이 브라우저에만 보관돼요.</p>
       </div>
 
       <button class="primary-button" type="submit" ${canSubmitUpload() ? "" : "disabled"} ${state.busy ? "disabled" : ""}>
@@ -844,30 +846,36 @@ function storybookSceneHtml(page, index) {
   const scene = sceneClasses[index % sceneClasses.length];
   const tilt = [-3, 2, -1, 3][index % 4];
   return `
-    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""} art-mode-${state.artMode}">
-      <div class="storybook-scene framing-${composition.framing} text-${composition.textSide}">
-        ${imageDataUrl ? `<img id="generated-page-art" src="${imageDataUrl}" alt="생성된 동화책 삽화" />` : ""}
-        <div class="scene-sky"></div>
-        <div class="scene-sun"></div>
-        <div class="scene-cloud cloud-one"></div>
-        <div class="scene-cloud cloud-two"></div>
-        <div class="scene-prop prop-one"></div>
-        <div class="scene-prop prop-two"></div>
-        <div class="character-ground" aria-hidden="true"></div>
-        ${
-          state.artMode === "whole"
-            ? `<img class="framed-drawing" src="${state.imageDataUrl}" alt="아이가 그린 그림" style="--character-tilt:${tilt}deg;" />`
-            : state.characterCutoutDataUrl
-              ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
-              : ""
-        }
-        <div class="scene-foreground" aria-hidden="true"></div>
-        ${drawing ? `<p class="art-loading" role="status"><span class="art-spinner" aria-hidden="true"></span>배경을 그리는 중이에요…</p>` : ""}
-        <div class="page-copy">
-          ${state.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
-          ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
-        </div>
+    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""} ${drawing ? "is-generating-art" : ""} art-mode-${state.artMode}">
+      <div class="storybook-scene framing-${composition.framing} ${drawing ? "is-generating" : ""}">
+        ${drawing ? `
+          <div class="art-loading-screen" role="status" aria-live="polite">
+            <span class="art-spinner" aria-hidden="true"></span>
+            <p>그림 속 주인공을 살려<br />이야기 장면을 그리고 있어요</p>
+          </div>
+        ` : `
+          ${imageDataUrl ? `<img id="generated-page-art" src="${imageDataUrl}" alt="아이 그림을 바탕으로 만든 동화책 삽화" />` : ""}
+          ${!imageDataUrl ? `
+            <div class="scene-sky"></div>
+            <div class="scene-sun"></div>
+            <div class="scene-cloud cloud-one"></div>
+            <div class="scene-cloud cloud-two"></div>
+            <div class="scene-prop prop-one"></div>
+            <div class="scene-prop prop-two"></div>
+            <div class="character-ground" aria-hidden="true"></div>
+            ${state.artMode === "whole"
+              ? `<img class="framed-drawing" src="${state.imageDataUrl}" alt="아이가 그린 그림" style="--character-tilt:${tilt}deg;" />`
+              : state.characterCutoutDataUrl
+                ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
+                : ""}
+            ${art?.error ? `<p class="art-fallback-note">삽화를 만들지 못해 원본 그림으로 보여드려요.</p>` : ""}
+          ` : ""}
+        `}
       </div>
+      ${drawing ? "" : `<div class="page-copy">
+        ${state.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
+        ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
+      </div>`}
     </div>
   `;
 }
@@ -875,6 +883,7 @@ function storybookSceneHtml(page, index) {
 function storyHtml() {
   const storyPages = state.story ? state.story.pages : state.opening ? state.opening.pages : [];
   const currentPage = storyPages[state.pageIndex];
+  const artPending = Boolean(state.pageArt[state.pageIndex]?.loading);
   const storyTitle = state.story || state.opening;
   if (!storyTitle || !currentPage) return "";
 
@@ -911,7 +920,7 @@ function storyHtml() {
         <strong>${state.pageIndex + 1} / ${STORY_PAGES}</strong>
       </div>
       ${storybookSceneHtml(currentPage, state.pageIndex)}
-      <div class="story-copy" style="position:relative;">
+      ${artPending ? "" : `<div class="story-copy" style="position:relative;">
         ${
           state.story && state.story.choice && state.pageIndex === OPENING_PAGES
             ? `<span class="choice-badge">${state.story.choice.byVoice ? "말로" : "골라서"} ${escapeHtml(state.nickname)}의 선택 · ${escapeHtml(state.story.choice.ko)}</span>`
@@ -919,7 +928,7 @@ function storyHtml() {
         }
         ${listenButtons}
         ${wordRow}
-      </div>
+      </div>`}
       <div class="story-nav">
         <button type="button" data-action="story-prev" ${state.pageIndex === 0 ? "disabled" : ""}>← 이전 장</button>
         ${navHtml}
@@ -1625,6 +1634,7 @@ async function onFileChange(event) {
   }
   try {
     state.imageDataUrl = await readFile(file);
+    state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
     state.imageName = file.name;
     state.error = "";
   } catch (caught) {
@@ -1637,6 +1647,7 @@ async function onFileChange(event) {
 async function useSample() {
   try {
     state.imageDataUrl = await sampleToPng(demoSampleImagePath(chapterNumber()));
+    state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
     state.imageName = `그림일기_예제_${chapterNumber()}편.png`;
     state.privacyChecked = true;
     state.error = "";
@@ -1748,6 +1759,7 @@ async function finishChapter() {
 
 function resetDrawing() {
   state.imageDataUrl = "";
+  state.imageReferenceDataUrl = "";
   state.imageName = "";
   state.privacyChecked = false;
   state.analysis = null;

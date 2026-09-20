@@ -504,8 +504,8 @@ function bookBannerHtml() {
         }</small>
       </div>
       <div class="book-banner-actions">
-        <button type="button" data-action="view-book">책 보기</button>
-        <button type="button" data-action="new-book">새 책 시작</button>
+        <button type="button" data-action="view-book">${iconImg("read")}책 보기</button>
+        <button type="button" data-action="new-book">${iconImg("newDrawing")}새 책 시작</button>
       </div>
     </section>
   `;
@@ -696,7 +696,7 @@ function friendsHtml() {
           )
           .join("")}
       </div>
-      <button class="text-button" type="button" data-action="go-home">처음 화면으로</button>
+      <button class="text-button" type="button" data-action="go-home">${iconImg("home")}처음 화면으로</button>
     </div>
   `;
 }
@@ -1025,12 +1025,12 @@ function offlineHtml() {
           <small>지금까지 ${state.book.chapters.length}/${MAX_CHAPTERS}편 · 책은 이 기기에 보관돼요</small>
         </div>
         <div class="offline-actions">
-          <button class="primary-button" type="button" data-action="continue-book">그림 사진 올리기</button>
+          <button class="primary-button" type="button" data-action="continue-book">${iconImg("photoUpload")}그림 사진 올리기</button>
           <div class="quiet-actions">
-            <button class="text-button" type="button" data-action="view-book">책 보기</button>
-            <button class="text-button" type="button" data-action="go-shelf">책장</button>
-            <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
-            <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지</button>
+            <button class="text-button" type="button" data-action="view-book">${iconImg("read")}책 보기</button>
+            <button class="text-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
+            <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
+            <button class="text-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
           </div>
         </div>`
           : `
@@ -1043,11 +1043,11 @@ function offlineHtml() {
           </div>
         </div>
         <div class="offline-actions">
-          <button class="primary-button" type="button" data-action="view-book">완성된 책 보기</button>
+          <button class="primary-button" type="button" data-action="view-book">${iconImg("read")}완성된 책 보기</button>
           <div class="quiet-actions">
-            <button class="text-button" type="button" data-action="go-shelf">책장</button>
-            <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
-            <button class="text-button" type="button" data-action="finish-today">오늘은 여기까지</button>
+            <button class="text-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
+            <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
+            <button class="text-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
           </div>
         </div>`
       }
@@ -1165,13 +1165,13 @@ function shelfBookDetailHtml(book) {
     <div class="shelf-actions">
       ${
         complete
-          ? `<button class="primary-button" type="button" data-action="view-book">책 읽기</button>`
-          : `<button class="primary-button" type="button" data-action="continue-book">다음 장면 그리기</button>`
+          ? `<button class="primary-button" type="button" data-action="view-book">${iconImg("read")}책 읽기</button>`
+          : `<button class="primary-button" type="button" data-action="continue-book">${iconImg("newDrawing")}다음 장면 그리기</button>`
       }
       <div class="quiet-actions">
-        ${complete ? "" : `<button class="text-button" type="button" data-action="view-book">지금까지 읽기</button>`}
-        <button class="text-button" type="button" data-action="view-parent">부모 기록</button>
-        <button class="text-button" type="button" data-action="go-home">처음 화면</button>
+        ${complete ? "" : `<button class="text-button" type="button" data-action="view-book">${iconImg("read")}지금까지 읽기</button>`}
+        <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
+        <button class="text-button" type="button" data-action="go-home">${iconImg("home")}처음 화면</button>
       </div>
     </div>
   `;
@@ -1189,7 +1189,7 @@ function shelfHtml() {
           <p>새 그림으로 시작하거나 친구가 시작한 이야기를 이어 그려보세요.</p>
         </div>
         <div class="shelf-actions">
-          <button class="primary-button" type="button" data-action="start-upload">내 그림으로 시작하기</button>
+          <button class="primary-button" type="button" data-action="start-upload">${iconImg("newDrawing")}내 그림으로 시작하기</button>
           <div class="quiet-actions">
             <button class="text-button" type="button" data-action="go-friends">친구 책 보기</button>
           </div>
@@ -1234,7 +1234,7 @@ function parentRecordHtml() {
       <div class="book-toolbar-wizard">
         <strong>${iconImg("parent")}부모 기록</strong>
         <div>
-          <button type="button" data-action="view-book">아이 화면(동화책) 보기</button>
+          <button type="button" data-action="view-book">${iconImg("read")}아이 화면(동화책) 보기</button>
           <button type="button" data-action="print-book">${iconImg("print")}인쇄·PDF 저장</button>
         </div>
       </div>
@@ -1557,7 +1557,7 @@ function bookViewHtml() {
   if (index < spreads.length - 1) {
     navRight = `<button class="primary-inline" type="button" data-action="book-next">다음 →</button>`;
   } else if (!complete) {
-    navRight = `<button class="primary-inline" type="button" data-action="continue-book">${book.chapters.length + 1}편 이어 그리기 →</button>`;
+    navRight = `<button class="primary-inline" type="button" data-action="continue-book">${iconImg("newDrawing")}${book.chapters.length + 1}편 이어 그리기 →</button>`;
   } else {
     navRight = `<button class="primary-inline" type="button" data-action="book-restart">처음부터 다시 읽기</button>`;
   }
@@ -1569,7 +1569,7 @@ function bookViewHtml() {
         <div>
           <button type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
           <button type="button" data-action="print-book">${iconImg("print")}인쇄·PDF 저장</button>
-          <button type="button" data-action="new-book">새 책 시작</button>
+          <button type="button" data-action="new-book">${iconImg("newDrawing")}새 책 시작</button>
         </div>
       </div>
       <div class="book-spreads">${spreadsHtml}</div>

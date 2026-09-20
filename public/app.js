@@ -853,7 +853,7 @@ function languageHtml() {
           .map(
             (opt) => `
           <button type="button" class="${state.language === opt.value ? "selected" : ""}" data-action="set-language" data-value="${opt.value}">
-            <span class="language-mark">${escapeHtml(opt.mark)}</span><b>${opt.title}</b><small>${opt.desc}</small>
+            <span class="language-mark ${opt.mark.length > 1 ? "compact" : ""}">${escapeHtml(opt.mark)}</span><b>${opt.title}</b><small>${opt.desc}</small>
           </button>`
           )
           .join("")}

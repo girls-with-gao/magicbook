@@ -2108,11 +2108,19 @@ li {
   place-items: center;
   width: 46px;
   height: 46px;
+  overflow: hidden;
   border: 2px solid #1f2937;
   border-radius: 16px;
   background: var(--paper-soft);
   color: var(--green-dark);
+  font-size: 22px;
   font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.language-mark.compact {
+  font-size: 16px;
 }
 
 .language-options b {

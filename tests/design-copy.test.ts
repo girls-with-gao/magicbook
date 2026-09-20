@@ -46,7 +46,7 @@ describe("child-first design copy", () => {
   });
 
   it("uses product icon assets instead of emoji for UI symbols", () => {
-    expect(icons.brand).toBe("/assets/icons/icon-final-home.png");
+    expect(icons.brand).toBe("/assets/brand/magicbook-symbol.png");
     for (const step of childJourneySteps) {
       expect(icons[step.icon]).toMatch(/^\/assets\/icons\/icon-(final-)?[a-z-]+\.png$/);
       expect(icons[step.icon]).not.toContain("emoji");

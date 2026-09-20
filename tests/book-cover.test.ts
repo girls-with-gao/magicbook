@@ -52,4 +52,16 @@ describe("book cover", () => {
     expect(buildBookCover(complete).statusLabel).toBe("완성");
     expect(buildBookCover(complete).progressLabel).toBe("4/4편");
   });
+
+  it("uses the latest chapter drawing as the album cover while keeping the book title", () => {
+    const secondChapter = {
+      ...book.chapters[0],
+      imageDataUrl: "data:image/png;base64,BBBB",
+      story: { ...book.chapters[0].story, titleKo: "이어진 두 번째 이야기" }
+    };
+    const multiChapterBook = { ...book, chapters: [book.chapters[0], secondChapter] };
+
+    expect(buildBookCover(multiChapterBook).imageDataUrl).toBe("data:image/png;base64,BBBB");
+    expect(buildBookCover(multiChapterBook).title).toBe("수민이와 조개의 비밀");
+  });
 });

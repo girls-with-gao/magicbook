@@ -29,7 +29,13 @@ export function cleanPage(value, fallback) {
           y: Math.min(100, Math.max(0, value.focus.y))
         }
       : fallback.focus;
-  return { ko: text(value.ko, fallback.ko), en: text(value.en, fallback.en), words, focus };
+  return {
+    ko: text(value.ko, fallback.ko),
+    en: text(value.en, fallback.en),
+    visualDescription: text(value.visualDescription, fallback.visualDescription || value.en || value.ko, 240),
+    words,
+    focus
+  };
 }
 
 /**
@@ -113,6 +119,7 @@ export function parseOpening(value) {
     pages: opening.pages.map((page) => ({
       ko: page.ko.slice(0, 300),
       en: page.en.slice(0, 300),
+      visualDescription: typeof page.visualDescription === "string" ? page.visualDescription.slice(0, 240) : page.en || page.ko,
       words: [],
       focus: { x: 50, y: 50 }
     })),

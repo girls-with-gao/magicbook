@@ -19,6 +19,10 @@ describe("AI prompts", () => {
     expect(prompt).toContain("questionKo");
     expect(prompt).toContain("Korean and English");
     expect(prompt).toContain("at most 2 vocabulary words");
+    expect(prompt).toContain("visualDescription");
+    expect(prompt).toContain("exact action, characters, setting, and relevant objects");
+    expect(prompt).toContain("Refer to characters by their visual appearance, not by writing their names");
+    expect(prompt).toContain("never dialogue or conversation bubbles");
     expect(prompt).not.toContain("Previous chapters");
   });
 

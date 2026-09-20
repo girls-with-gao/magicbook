@@ -15,10 +15,11 @@ export function formatCoverDate(value) {
  */
 export function buildBookCover(book) {
   const first = book.chapters[0];
+  const latest = book.chapters.at(-1);
   const count = book.chapters.length;
   return {
     title: first?.story.titleKo || "그림책",
-    imageDataUrl: first?.imageDataUrl || "",
+    imageDataUrl: latest?.imageDataUrl || first?.imageDataUrl || "",
     dateLabel: formatCoverDate(book.updatedAt || book.createdAt),
     progressLabel: `${count}/${MAX_CHAPTERS}편`,
     statusLabel: count >= MAX_CHAPTERS ? "완성" : "진행 중",

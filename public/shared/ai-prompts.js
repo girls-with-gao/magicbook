@@ -51,6 +51,7 @@ Continuation rules:
 const pageJson = `{
       "ko": "string",
       "en": "string",
+      "visualDescription": "one concise English description of only the visible scene for the illustrator; describe the exact action, characters, setting, and relevant objects from this page, without quoting or drawing any words",
       "words": [{ "ko": "string", "en": "string" }],
       "focus": { "x": 50, "y": 50 }
     }`;
@@ -60,6 +61,8 @@ const pageJson = `{
  */
 function sharedRules(age) {
   return `- Every page must contain matching Korean and English sentences.
+- For every page, write visualDescription as a concise, concrete illustration direction that depicts that page's exact action, characters, setting, and relevant objects. It must agree with both story sentences; do not add a different event or prop. Refer to characters by their visual appearance, not by writing their names.
+- visualDescription is production guidance only, not text to show or render in the illustration. Describe characters' visible actions and expressions, never dialogue or conversation bubbles. Do not include captions, signs, labels, or any other writing in it.
 - Use short, age-appropriate language for a ${age}-year-old; the full ${STORY_PAGES}-page story reads in about 3 minutes.
 - Each page may contain at most 2 vocabulary words, paired as Korean and English.
 - Preserve the child's imagination; do not claim new artwork was generated.

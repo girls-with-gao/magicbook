@@ -81,6 +81,12 @@ describe("normalize", () => {
     expect(parseOpening(createDemoOpening(meta))?.pages).toHaveLength(2);
   });
 
+  it("페이지별 그림 설명을 시작 이야기 파싱 뒤에도 보존한다", () => {
+    const opening = createDemoOpening(meta);
+    opening.pages[0].visualDescription = "A child-drawn orange dinosaur waves beside a green tree.";
+    expect(parseOpening(opening)?.pages[0].visualDescription).toBe(opening.pages[0].visualDescription);
+  });
+
   it("부모에게 남길 한 줄을 함께 만든다", () => {
     const opening = createDemoOpening(meta);
     const card = opening.choices[1];

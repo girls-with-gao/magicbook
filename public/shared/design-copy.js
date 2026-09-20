@@ -5,7 +5,7 @@ export const homeActions = {
 };
 
 export const icons = {
-  brand: "/assets/icons/icon-final-home.png",
+  brand: "/assets/brand/magicbook-symbol.png",
   home: "/assets/icons/icon-final-home.png",
   newDrawing: "/assets/icons/icon-final-new-drawing.png",
   myBook: "/assets/icons/icon-final-bookshelf.png",

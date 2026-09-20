@@ -47,6 +47,7 @@ const state = {
   imageDataUrl: "",
   imageReferenceDataUrl: "",
   imageName: "",
+  draftUnsaved: false,
   privacyChecked: false,
   analysis: null,
   language: "both",
@@ -72,6 +73,8 @@ const state = {
   pageArt: {}, // pageIndex -> { imageDataUrl, framing, textSide }
   bookIndex: 0,
   selectedSeedId: "",
+  bookArtPending: {},
+  bookArtErrors: {},
   // "계속 나온 단어" 발음 연습 진행 상태. en(소문자) -> { listening, attempts, feedback }.
   // 도장(book.practiced)과 달리 새로고침하면 사라진다 — 그 자리에서의 시도 표시일 뿐이다.
   wordPractice: {}
@@ -401,25 +404,22 @@ function storyRequestBase() {
   };
 }
 
-/** 보고 있는 쪽만 삽화를 만든다. 실패하면 조용히 빈 값으로 남아 오려낸 주인공만 보인다. */
-async function ensurePageArt(index) {
+/** 현재 쪽과 다음 쪽 삽화를 만든다. 실패해도 원본 그림을 대체 삽화처럼 보여주지 않는다. */
+async function ensurePageArt(index, { force = false } = {}) {
   if (!state.story && !state.opening) return;
-  if (state.pageArt[index]) return;
+  if (state.pageArt[index] && !force) return;
   const pages = state.story ? state.story.pages : state.opening.pages;
   const page = pages[index];
   if (!page) return;
-  const titleKo = state.story ? state.story.titleKo : state.opening.titleKo;
   state.pageArt[index] = { loading: true };
   // 기다리는 동안 "그리는 중" 안내가 보이도록 먼저 한 번 그린다.
   if (index === state.pageIndex) renderStoryImageOnly();
   try {
     const data = await apiPost("/api/page-art", {
-      nickname: state.nickname.trim(),
       analysis: state.analysis,
       imageDataUrl: state.imageReferenceDataUrl || state.imageDataUrl,
-      page,
-      pageIndex: index,
-      titleKo
+      visualDescription: page.visualDescription || page.en || page.ko,
+      pageIndex: index
     });
     state.pageArt[index] = { imageDataUrl: data.imageDataUrl || "", framing: data.framing, textSide: data.textSide };
   } catch {
@@ -440,7 +440,7 @@ function render() {
       <section class="studio-card">
         ${stageContentHtml()}
       </section>
-      <footer class="app-footer">그림이야기는 아이를 화면에 더 오래 머물게 하지 않아요.</footer>
+      <footer class="app-footer">매직북은 아이의 그림에서 시작해 이야기를 함께 만들어요.</footer>
     </div>
   `;
   bindEvents();
@@ -465,30 +465,15 @@ function renderStoryImageOnly() {
  */
 function brandBarHtml() {
   const showParent = Boolean(state.book && state.book.chapters.length);
+  const home = state.stage === "home";
+  const brandImage = home
+    ? `<img class="brand-full-logo" src="/assets/brand/magicbook-logo.png" alt="매직북 Magicbook" />`
+    : `${iconImg("brand", "", "brand-icon")}<img class="brand-wordmark" src="/assets/brand/magicbook-wordmark.png" alt="" />`;
   return `
-    <header class="brand-bar">
-      <button type="button" class="brand-mark" data-action="go-home" aria-label="처음 화면으로 가기">${iconImg("brand", "", "brand-icon")}<span>그림이야기</span></button>
+    <header class="brand-bar ${home ? "brand-bar-home" : ""}">
+      <button type="button" class="brand-mark ${home ? "brand-mark-home" : ""}" data-action="go-home" aria-label="매직북 처음 화면으로 가기">${brandImage}</button>
       ${showParent ? `<button type="button" class="parent-entry-button" data-action="view-parent">${iconImg("parent")}부모</button>` : ""}
     </header>
-  `;
-}
-
-function heroHtml() {
-  return `
-    <section class="hero" id="hero-banner" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow">그림 → 이야기 → 다시 그림</p>
-        <h1 id="hero-title">그림이 다음 이야기를<br />불러와요</h1>
-        <p class="lead">종이에 그린 장면을 동화로 읽고, 아이가 고른 다음 장면을 다시 종이에 그려요.</p>
-      </div>
-      <figure class="hero-preview" aria-hidden="true">
-        <img src="/seed-dino-1.png" alt="" />
-        <figcaption>
-          <b>아이가 그린 첫 장면</b>
-          <span>공룡이 책을 읽는 밤</span>
-        </figcaption>
-      </figure>
-    </section>
   `;
 }
 
@@ -501,7 +486,7 @@ function bookBannerHtml() {
         <b>${escapeHtml(book.chapters[0]?.story.titleKo || "")} · ${book.chapters.length}/${MAX_CHAPTERS}편</b>
         <small>${
           bookFull()
-            ? "새 그림을 올리면 새 책이 시작돼요. 지금 책은 먼저 인쇄해두세요."
+            ? "새 그림은 새 책으로 시작해요. 지금 책은 책장에 보관돼요."
             : `지난 이야기: ${escapeHtml(book.chapters.at(-1)?.story.summaryKo || "")}`
         }</small>
       </div>
@@ -560,40 +545,60 @@ function stageContentHtml() {
 
 function homeHtml() {
   const hasBook = Boolean(state.book && state.book.chapters.length);
-  const complete = hasBook && bookFull();
-  const title = state.book?.chapters[0]?.story.titleKo || "";
+  const cover = hasBook ? buildBookCover(state.book) : null;
   return `
     <div class="stage-panel home-panel">
-      <div class="stage-heading">
-        <p class="eyebrow">그림 → 이야기 → 다시 그림</p>
-        <h2>오늘은 뭘 그릴까?</h2>
-        <p>종이에 그린 그림이 책이 되고, 다음 장면은 다시 종이에 그려요.</p>
+      <div class="home-heading">
+        <p class="eyebrow">매직북</p>
+        <h2>${hasBook ? "이야기를 이어가 볼까요?" : "오늘은 어떤 그림을 그려볼까요?"}</h2>
+        <p>${hasBook ? "만들던 책을 읽거나 다음 장면을 더해보세요." : "종이에 그린 그림에서 새로운 이야기가 시작돼요."}</p>
       </div>
 
       <div class="home-actions">
         ${
           hasBook
-            ? `<button class="home-card featured" type="button" data-action="go-shelf">
-                ${iconImg("myBook", "", "home-card-icon")}
-                <b>${homeActions.myBook}</b>
-                <small>${escapeHtml(title)} · ${state.book.chapters.length}/${MAX_CHAPTERS}편</small>
+            ? `<button class="home-resume" type="button" data-action="view-book">
+                <span class="home-resume-art">${cover.imageDataUrl ? `<img src="${cover.imageDataUrl}" alt="" />` : iconImg("myBook")}</span>
+                <span class="home-resume-copy">
+                  <small>${cover.statusLabel} · ${cover.progressLabel}</small>
+                  <b>${escapeHtml(cover.title)}</b>
+                  <span>${escapeHtml(cover.ownerLabel)}</span>
+                </span>
+                <span class="home-resume-action">지금까지 읽기 <span aria-hidden="true">→</span></span>
               </button>`
             : ""
         }
-        <button class="home-card" type="button" data-action="${hasBook ? "new-book" : "start-upload"}">
-          ${iconImg("newDrawing", "", "home-card-icon")}
-          <b>${homeActions.newDrawing}</b>
-          <small>종이에 그린 그림을 올려 1편을 만들어요</small>
-        </button>
-        <button class="home-card" type="button" data-action="go-friends">
-          ${iconImg("friendBook", "", "home-card-icon")}
-          <b>${homeActions.friendBook}</b>
-          <small>앞 이야기를 읽고 내 그림으로 다음 장면을 붙여요</small>
-        </button>
+        <div class="home-start-options">
+          <button type="button" data-action="${hasBook ? "new-book" : "start-upload"}">
+            ${iconImg("newDrawing")}<span><b>새 그림</b><small>${hasBook ? "새 이야기를 시작해요" : "그림을 올려 새 이야기를 만들어요"}</small></span><span class="home-option-arrow" aria-hidden="true">→</span>
+          </button>
+          <button type="button" data-action="go-friends">
+            ${iconImg("friendBook")}<span><b>친구 책</b><small>앞 이야기에 내 장면을 더해요</small></span><span class="home-option-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
       </div>
 
-      <p class="privacy-note home-note">그림은 OpenAI 분석과 Higgsfield 삽화 생성에 전송돼요. 앱 서버에는 저장하지 않고, 책은 이 브라우저에만 보관돼요.</p>
+      <p class="privacy-note home-note">그림은 이야기와 삽화를 만드는 데 사용되며, 만든 책은 이 브라우저에 보관돼요. 그림이 OpenAI와 Higgsfield에 전송돼요.</p>
     </div>
+  `;
+}
+
+function heroHtml() {
+  return `
+    <section class="hero" id="hero-banner" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">그림 → 이야기 → 다시 그림</p>
+        <h1 id="hero-title">그림이 다음 이야기를<br />불러와요</h1>
+        <p class="lead">종이에 그린 장면을 동화로 읽고, 아이가 고른 다음 장면을 다시 종이에 그려요.</p>
+      </div>
+      <figure class="hero-preview" aria-hidden="true">
+        <img src="/seed-dino-1.png" alt="" />
+        <figcaption>
+          <b>아이가 그린 첫 장면</b>
+          <span>공룡이 책을 읽는 밤</span>
+        </figcaption>
+      </figure>
+    </section>
   `;
 }
 
@@ -674,7 +679,7 @@ function friendsHtml() {
         <h2>어떤 책을 이어 그릴까?</h2>
         <p>친구가 만든 장면을 먼저 읽고, 내 그림으로 릴레이 그림책을 이어가요.</p>
       </div>
-      <p class="seed-note">안내 · 지금 보이는 이야기는 그림이야기 팀이 만든 예시예요.</p>
+      <p class="seed-note">안내 · 지금 보이는 이야기는 매직북 팀이 만든 예시예요.</p>
       <div class="seed-list">
         ${seedBooks
           .map(
@@ -730,8 +735,19 @@ function relayReadHtml() {
             <div>
               <p class="eyebrow">${index + 1}편 · ${escapeHtml(seed.authorName)} 그림</p>
               <h3>${escapeHtml(chapter.story.titleKo)}</h3>
-              <p>${escapeHtml(chapter.story.summaryKo)}</p>
+              <p class="relay-pages-label">이야기 전체</p>
             </div>
+            <ol class="relay-story-pages">
+              ${chapter.story.pages
+                .map(
+                  (page) => `
+                <li>
+                  ${state.language !== "en" ? `<p lang="ko">${escapeHtml(page.ko)}</p>` : ""}
+                  ${state.language !== "ko" ? `<p class="relay-page-en" lang="en">${escapeHtml(page.en)}</p>` : ""}
+                </li>`
+                )
+                .join("")}
+            </ol>
           </article>`
           )
           .join("")}
@@ -842,12 +858,12 @@ function storybookSceneHtml(page, index) {
   const art = state.pageArt[index];
   const imageDataUrl = art && art.imageDataUrl ? art.imageDataUrl : "";
   const drawing = Boolean(art && art.loading);
+  const artFailed = Boolean(art && art.error);
   const composition = currentComposition(index);
   const scene = sceneClasses[index % sceneClasses.length];
-  const tilt = [-3, 2, -1, 3][index % 4];
   return `
-    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""} ${drawing ? "is-generating-art" : ""} art-mode-${state.artMode}">
-      <div class="storybook-scene framing-${composition.framing} ${drawing ? "is-generating" : ""}">
+    <div class="book-page ${scene} ${imageDataUrl ? "has-generated-art" : ""} ${drawing ? "is-generating-art" : ""}">
+      <div class="storybook-scene framing-${composition.framing} ${drawing ? "is-generating" : ""} ${artFailed ? "has-art-error" : ""}">
         ${drawing ? `
           <div class="art-loading-screen" role="status" aria-live="polite">
             <span class="art-spinner" aria-hidden="true"></span>
@@ -855,27 +871,17 @@ function storybookSceneHtml(page, index) {
           </div>
         ` : `
           ${imageDataUrl ? `<img id="generated-page-art" src="${imageDataUrl}" alt="아이 그림을 바탕으로 만든 동화책 삽화" />` : ""}
-          ${!imageDataUrl ? `
-            <div class="scene-sky"></div>
-            <div class="scene-sun"></div>
-            <div class="scene-cloud cloud-one"></div>
-            <div class="scene-cloud cloud-two"></div>
-            <div class="scene-prop prop-one"></div>
-            <div class="scene-prop prop-two"></div>
-            <div class="character-ground" aria-hidden="true"></div>
-            ${state.artMode === "whole"
-              ? `<img class="framed-drawing" src="${state.imageDataUrl}" alt="아이가 그린 그림" style="--character-tilt:${tilt}deg;" />`
-              : state.characterCutoutDataUrl
-                ? `<img id="page-art" src="${state.characterCutoutDataUrl}" alt="아이 그림에서 추출한 주인공" style="--character-left:${composition.left};--character-bottom:${composition.bottom};--character-width:${composition.width};--character-height:${composition.height};--character-tilt:${tilt}deg;" />`
-                : ""}
-            ${art?.error ? `<p class="art-fallback-note">삽화를 만들지 못해 원본 그림으로 보여드려요.</p>` : ""}
-          ` : ""}
+          ${!imageDataUrl ? `<div class="art-error-state" role="status">
+            <p>${artFailed ? "이 페이지 삽화를 만들지 못했어요." : "페이지 삽화를 준비하고 있어요."}</p>
+            ${artFailed ? `<button type="button" data-action="retry-page-art" data-index="${index}">다시 만들기</button>` : ""}
+          </div>` : ""}
         `}
       </div>
       ${drawing ? "" : `<div class="page-copy">
         ${state.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
         ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
       </div>`}
+      ${imageDataUrl && !drawing ? `<button class="text-button illustration-regenerate" type="button" data-action="regenerate-page-art" data-index="${index}">삽화 다시 만들기</button>` : ""}
     </div>
   `;
 }
@@ -884,13 +890,14 @@ function storyHtml() {
   const storyPages = state.story ? state.story.pages : state.opening ? state.opening.pages : [];
   const currentPage = storyPages[state.pageIndex];
   const artPending = Boolean(state.pageArt[state.pageIndex]?.loading);
+  const allArtSettled = storyPages.every((_, index) => state.pageArt[index] && !state.pageArt[index].loading);
   const storyTitle = state.story || state.opening;
   if (!storyTitle || !currentPage) return "";
 
   const listenButtons = `
     <div class="listen-row">
-      ${state.language !== "en" ? `<button type="button" data-action="listen-ko">${iconImg("listen")}한국어 듣기</button>` : ""}
-      ${state.language !== "ko" ? `<button type="button" data-action="listen-en">${iconImg("listen")}English</button>` : ""}
+      ${state.language !== "en" ? `<button class="listen-button listen-button-ko" type="button" data-action="listen-ko" aria-label="한국어 이야기 듣기"><span class="listen-button-icon">${iconImg("listen")}</span><span>한국어 듣기</span></button>` : ""}
+      ${state.language !== "ko" ? `<button class="listen-button listen-button-en" type="button" data-action="listen-en" aria-label="영어 이야기 듣기"><span class="listen-button-icon">${iconImg("listen")}</span><span>영어 듣기</span></button>` : ""}
     </div>
   `;
   const wordRow = `
@@ -905,8 +912,8 @@ function storyHtml() {
   } else if (!state.story) {
     navHtml = `<button class="primary-inline" type="button" data-action="start-choosing">다음은 ${escapeHtml(state.nickname)}의 차례 →</button>`;
   } else {
-    navHtml = `<button class="primary-inline" type="button" data-action="finish-chapter" ${state.busy ? "disabled" : ""}>${
-      state.busy ? "책에 담는 중…" : "책에 담고 다음으로 →"
+    navHtml = `<button class="primary-inline" type="button" data-action="finish-chapter" ${state.busy || !allArtSettled ? "disabled" : ""}>${
+      state.busy ? "책에 담는 중…" : !allArtSettled ? "삽화를 준비하고 있어요…" : "책에 담고 다음으로 →"
     }</button>`;
   }
 
@@ -920,7 +927,7 @@ function storyHtml() {
         <strong>${state.pageIndex + 1} / ${STORY_PAGES}</strong>
       </div>
       ${storybookSceneHtml(currentPage, state.pageIndex)}
-      ${artPending ? "" : `<div class="story-copy" style="position:relative;">
+      ${artPending ? "" : `<div class="story-copy">
         ${
           state.story && state.story.choice && state.pageIndex === OPENING_PAGES
             ? `<span class="choice-badge">${state.story.choice.byVoice ? "말로" : "골라서"} ${escapeHtml(state.nickname)}의 선택 · ${escapeHtml(state.story.choice.ko)}</span>`
@@ -950,13 +957,13 @@ function choiceHtml() {
     <button class="back-button" type="button" data-action="stop-choosing" ${state.busy ? "disabled" : ""}>← 이야기 다시 보기</button>
     <div class="choice-panel">
       <div class="stage-heading">
-        <span class="stage-emoji choice-heading-icon" aria-hidden="true">${iconImg("choice")}</span>
-        <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례! 다음 장면을 정해요</p>
+        <p class="eyebrow">${escapeHtml(state.nickname)}의 다음 장면</p>
         <h2>${escapeHtml(question)}</h2>
         ${englishLine}
         <button class="listen-question" type="button" data-action="ask-again">${iconImg("listen")}질문 다시 듣기</button>
       </div>
 
+      <p class="choice-instruction">마음에 드는 장면을 골라보세요</p>
       <div class="choice-cards" role="radiogroup" aria-label="다음 장면 고르기">
         ${opening.choices
           .map((card, index) => {
@@ -965,8 +972,11 @@ function choiceHtml() {
             return `
             <button type="button" role="radio" aria-checked="${selected}" class="choice-card ${selected ? "selected" : ""}" data-action="pick-card" data-index="${index}">
               <span class="choice-emoji" aria-hidden="true">${iconImg(actionIcon)}</span>
-              ${state.language !== "en" ? `<b>${escapeHtml(card.ko)}</b>` : ""}
-              ${state.language !== "ko" ? `<small>${escapeHtml(card.en)}</small>` : ""}
+              <span class="choice-labels">
+                ${state.language !== "en" ? `<b>${escapeHtml(card.ko)}</b>` : ""}
+                ${state.language !== "ko" ? `<small>${escapeHtml(card.en)}</small>` : ""}
+              </span>
+              <span class="choice-check" aria-hidden="true">${selected ? "✓" : ""}</span>
             </button>`;
           })
           .join("")}
@@ -990,8 +1000,8 @@ function choiceHtml() {
 
       ${state.voiceError ? `<p class="voice-error" role="alert">${escapeHtml(state.voiceError)}</p>` : ""}
 
-      <button class="primary-button" type="button" data-action="confirm-choice" ${!state.choiceSelection || state.busy ? "disabled" : ""}>
-        ${state.busy ? "고른 장면으로 이야기를 이어 쓰는 중…" : state.choiceSelection ? "이걸로 할래" : "하나를 골라주세요"}
+      <button class="primary-button choice-confirm" type="button" data-action="confirm-choice" ${!state.choiceSelection || state.busy ? "disabled" : ""}>
+        ${state.busy ? "이야기를 이어 쓰고 있어요…" : state.choiceSelection ? "이 장면으로 이어가기" : "장면을 하나 골라주세요"}
       </button>
     </div>
   `;
@@ -1009,12 +1019,11 @@ function offlineHtml() {
   const full = bookFull();
   return `
     <div class="stage-panel offline-panel">
-      <div class="mission-sheet offline-question">
-        <span class="mission-stamp" aria-hidden="true">${iconImg("paperMission")}</span>
+      <div class="offline-question">
         <p class="eyebrow">이제 ${escapeHtml(state.nickname)}의 차례예요</p>
         <h2>${state.language !== "en" ? escapeHtml(story.offlinePromptKo) : "Draw the next scene on paper."}</h2>
         ${state.language !== "ko" ? `<p class="english-line">${escapeHtml(story.offlinePromptEn)}</p>` : ""}
-        ${missionHintsHtml()}
+        ${missionHintsHtml(true)}
       </div>
       ${
         state.book && state.book.origin
@@ -1029,17 +1038,16 @@ function offlineHtml() {
         state.book && !full
           ? `
         <div class="paper-prompt">
-          ${iconImg("paperMission", "", "paper-prompt-icon")}
-          <b>${state.book.chapters.length + 1}편으로 이어가요</b>
-          <small>지금까지 ${state.book.chapters.length}/${MAX_CHAPTERS}편 · 책은 이 기기에 보관돼요</small>
+          <b>다음은 ${state.book.chapters.length + 1}편이에요</b>
+          <small>${state.book.chapters.length}/${MAX_CHAPTERS}편 저장됨 · 책은 이 기기에 보관돼요</small>
         </div>
         <div class="offline-actions">
           <button class="primary-button" type="button" data-action="continue-book">${iconImg("photoUpload")}그림 사진 올리기</button>
-          <div class="quiet-actions">
-            <button class="text-button" type="button" data-action="view-book">${iconImg("read")}책 보기</button>
-            <button class="text-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
-            <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
-            <button class="text-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
+          <div class="offline-utility-actions">
+            <button class="secondary-button" type="button" data-action="view-book">${iconImg("read")}책 보기</button>
+            <button class="secondary-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
+            <button class="secondary-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
+            <button class="secondary-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
           </div>
         </div>`
           : `
@@ -1053,10 +1061,10 @@ function offlineHtml() {
         </div>
         <div class="offline-actions">
           <button class="primary-button" type="button" data-action="view-book">${iconImg("read")}완성된 책 보기</button>
-          <div class="quiet-actions">
-            <button class="text-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
-            <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
-            <button class="text-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
+          <div class="offline-utility-actions">
+            <button class="secondary-button" type="button" data-action="go-shelf">${iconImg("myBook")}책장</button>
+            <button class="secondary-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
+            <button class="secondary-button" type="button" data-action="finish-today">${iconImg("finishToday")}오늘은 여기까지</button>
           </div>
         </div>`
       }
@@ -1065,7 +1073,10 @@ function offlineHtml() {
   `;
 }
 
-function missionHintsHtml() {
+function missionHintsHtml(compact = false) {
+  if (compact) {
+    return `<ul class="mission-hints offline-hints">${missionHints.map((hint) => `<li>${escapeHtml(hint)}</li>`).join("")}</ul>`;
+  }
   const hintIcons = ["newDrawing", "friendBook", "photoUpload"];
   return `<div class="mission-hints" aria-label="그림 힌트">
     ${missionHints
@@ -1155,6 +1166,10 @@ function shelfBookDetailHtml(book) {
             ? `<p class="coauthor-line">${escapeHtml(withParticle(book.origin.authorName, "이가", "가"))} 시작한 이야기를 이어 그리고 있어요.</p>`
             : ""
         }
+        <div class="shelf-detail-actions">
+          <button class="primary-button" type="button" data-action="view-book">${iconImg("read")}${complete ? "완성 책 읽기" : "지금까지 읽기"}</button>
+          ${complete ? "" : `<button class="secondary-button" type="button" data-action="continue-book">${iconImg("newDrawing")}다음 장면 그리기</button>`}
+        </div>
       </div>
     </article>
 
@@ -1172,13 +1187,7 @@ function shelfBookDetailHtml(book) {
     </div>
 
     <div class="shelf-actions">
-      ${
-        complete
-          ? `<button class="primary-button" type="button" data-action="view-book">${iconImg("read")}책 읽기</button>`
-          : `<button class="primary-button" type="button" data-action="continue-book">${iconImg("newDrawing")}다음 장면 그리기</button>`
-      }
       <div class="quiet-actions">
-        ${complete ? "" : `<button class="text-button" type="button" data-action="view-book">${iconImg("read")}지금까지 읽기</button>`}
         <button class="text-button" type="button" data-action="view-parent">${iconImg("parent")}부모 기록</button>
         <button class="text-button" type="button" data-action="go-home">${iconImg("home")}처음 화면</button>
       </div>
@@ -1480,14 +1489,24 @@ function spreadContentHtml(book, spread, { first, last, complete, words, charact
   } else if (spread.kind === "page") {
     const chapter = book.chapters[spread.chapter];
     const page = chapter.story.pages[spread.page];
+    const artKey = `${spread.chapter}:${spread.page}`;
+    const seedIllustration = Boolean(book.origin && spread.chapter === 0 && chapter.author);
     content = `
       <div class="book-page-spread" style="display:grid;gap:18px;">
         <div class="story-image" style="position:relative;height:clamp(220px,40vh,340px);overflow:hidden;border-radius:22px;">
-          <img src="${chapter.imageDataUrl}" alt="${spread.chapter + 1}편 그림" style="width:100%;height:100%;object-fit:cover;object-position:${page.focus.x}% ${page.focus.y}%;" />
+          ${page.imageDataUrl
+            ? `<img src="${page.imageDataUrl}" alt="${spread.chapter + 1}편 동화 삽화" style="width:100%;height:100%;object-fit:cover;" />`
+            : seedIllustration
+              ? `<img src="${chapter.imageDataUrl}" alt="친구가 그린 ${spread.chapter + 1}편 그림" style="width:100%;height:100%;object-fit:cover;object-position:${page.focus.x}% ${page.focus.y}%;" />`
+              : `<div class="book-art-missing">
+                  <p>${state.bookArtPending[artKey] ? "이 페이지 삽화를 다시 만들고 있어요…" : state.bookArtErrors[artKey] || "이전 저장본에는 이 페이지의 삽화가 저장되지 않았어요."}</p>
+                  ${!state.bookArtPending[artKey] ? `<button type="button" data-action="generate-saved-page-art" data-chapter="${spread.chapter}" data-page="${spread.page}">이 페이지 삽화 만들기</button>` : ""}
+                </div>`}
           <span class="original-badge">${spread.chapter + 1}편${chapter.author ? ` · ${escapeHtml(withParticle(chapter.author, "이", ""))} 씀` : ""} · ${escapeHtml(
       book.language === "en" ? chapter.story.titleEn : chapter.story.titleKo
     )}</span>
         </div>
+        ${page.imageDataUrl && !seedIllustration ? `<button class="text-button illustration-regenerate" type="button" data-action="generate-saved-page-art" data-chapter="${spread.chapter}" data-page="${spread.page}" ${state.bookArtPending[artKey] ? "disabled" : ""}>${state.bookArtPending[artKey] ? "삽화 다시 만드는 중…" : "삽화 다시 만들기"}</button>` : ""}
         <div class="story-copy">
           ${book.language !== "en" ? `<p class="korean-line">${escapeHtml(page.ko)}</p>` : ""}
           ${book.language !== "ko" ? `<p class="english-line">${escapeHtml(page.en)}</p>` : ""}
@@ -1636,6 +1655,7 @@ async function onFileChange(event) {
     state.imageDataUrl = await readFile(file);
     state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
     state.imageName = file.name;
+    state.draftUnsaved = true;
     state.error = "";
   } catch (caught) {
     setError(caught.message || "그림을 읽지 못했어요.");
@@ -1649,6 +1669,7 @@ async function useSample() {
     state.imageDataUrl = await sampleToPng(demoSampleImagePath(chapterNumber()));
     state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
     state.imageName = `그림일기_예제_${chapterNumber()}편.png`;
+    state.draftUnsaved = true;
     state.privacyChecked = true;
     state.error = "";
   } catch (caught) {
@@ -1743,24 +1764,73 @@ async function finishChapter() {
   state.busy = true;
   render();
   const storedImage = await shrinkImage(state.imageDataUrl);
+  const storyWithPageArt = {
+    ...state.story,
+    pages: await Promise.all(state.story.pages.map(async (page, index) => {
+      const generatedImage = state.pageArt[index]?.imageDataUrl;
+      return generatedImage ? { ...page, imageDataUrl: await shrinkImage(generatedImage, 768) } : page;
+    }))
+  };
   const next = appendChapter(
     state.book,
-    { imageDataUrl: storedImage, analysis: state.analysis, story: state.story },
+    { imageDataUrl: storedImage, analysis: state.analysis, story: storyWithPageArt },
     { nickname: state.nickname.trim(), age: state.age, language: state.language }
   );
   state.book = next;
   const storage = browserStorage();
   const result = storage ? saveBook(storage, next) : { ok: false, message: "이 브라우저에서는 책을 보관할 수 없어요." };
   if (result.ok) syncLibrary(storage);
+  if (result.ok) state.draftUnsaved = false;
   state.busy = false;
   go("offline");
   if (!result.ok) setError(result.message);
+}
+
+async function generateSavedPageArt(chapterIndex, pageIndex) {
+  const chapter = state.book?.chapters?.[chapterIndex];
+  const page = chapter?.story.pages?.[pageIndex];
+  if (!chapter || !page) return;
+  const key = `${chapterIndex}:${pageIndex}`;
+  if (state.bookArtPending[key]) return;
+  state.bookArtPending[key] = true;
+  delete state.bookArtErrors[key];
+  render();
+  try {
+    const data = await apiPost("/api/page-art", {
+      analysis: chapter.analysis,
+      imageDataUrl: chapter.imageDataUrl,
+      visualDescription: page.visualDescription || page.en || page.ko,
+      pageIndex
+    });
+    const imageDataUrl = await shrinkImage(data.imageDataUrl, 768);
+    const chapters = state.book.chapters.map((item, index) => {
+      if (index !== chapterIndex) return item;
+      return {
+        ...item,
+        story: {
+          ...item.story,
+          pages: item.story.pages.map((currentPage, index) => index === pageIndex ? { ...currentPage, imageDataUrl } : currentPage)
+        }
+      };
+    });
+    state.book = { ...state.book, chapters };
+    const storage = browserStorage();
+    const result = storage ? saveBook(storage, state.book) : { ok: false, message: "이 브라우저에서는 책을 보관할 수 없어요." };
+    if (result.ok) syncLibrary(storage);
+    else state.bookArtErrors[key] = result.message;
+  } catch {
+    state.bookArtErrors[key] = "삽화를 만들지 못했어요. 잠시 후 다시 시도해 주세요.";
+  } finally {
+    delete state.bookArtPending[key];
+    render();
+  }
 }
 
 function resetDrawing() {
   state.imageDataUrl = "";
   state.imageReferenceDataUrl = "";
   state.imageName = "";
+  state.draftUnsaved = false;
   state.privacyChecked = false;
   state.analysis = null;
   state.opening = null;
@@ -1816,7 +1886,7 @@ function continueBook() {
 }
 
 function startNewBook() {
-  if (state.book && !window.confirm("지금 책을 지우고 새 책을 시작할까요? 필요하면 먼저 인쇄·PDF로 저장해주세요.")) return;
+  if (state.draftUnsaved && !window.confirm("아직 책장에 저장하지 않은 그림이나 이야기가 있어요. 저장하지 않고 새 그림을 시작할까요?")) return;
   const storage = browserStorage();
   if (storage) clearBook(storage);
   state.book = null;
@@ -1932,6 +2002,19 @@ function onAction(event) {
       break;
     case "generate-story":
       generateStory();
+      break;
+    case "retry-page-art": {
+      const index = Number(el.dataset.index);
+      delete state.pageArt[index];
+      ensurePageArt(index);
+      render();
+      break;
+    }
+    case "regenerate-page-art":
+      ensurePageArt(Number(el.dataset.index), { force: true });
+      break;
+    case "generate-saved-page-art":
+      generateSavedPageArt(Number(el.dataset.chapter), Number(el.dataset.page));
       break;
     case "start-choosing":
       startChoosing();

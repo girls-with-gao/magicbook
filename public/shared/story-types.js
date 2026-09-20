@@ -17,6 +17,7 @@
  * @typedef {Object} StoryPage
  * @property {string} ko
  * @property {string} en
+ * @property {string} [visualDescription] concise image-only scene direction, never rendered as text
  * @property {StoryWord[]} words
  * @property {{x:number,y:number}} focus
  *

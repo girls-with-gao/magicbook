@@ -130,6 +130,7 @@ function normalizeStory(story) {
     pages: pages.slice(0, 4).map((page) => ({
       ko: trimSentences(page.ko || "", 2),
       en: trimSentences(page.en || "", 2),
+      visualDescription: typeof page.visualDescription === "string" ? page.visualDescription.slice(0, 240) : page.en || page.ko || "",
       framing: normalizeFraming(page.framing),
       textSide: page.textSide === "left" ? "left" : "right"
     }))
@@ -348,27 +349,24 @@ async function generatePageImages(payload, story) {
   const results = [];
 
   for (let index = 0; index < pages.length; index += 1) {
-    const image = await generatePageImage(payload, story, pages[index], index);
+    const image = await generatePageImage(payload, pages[index], index);
     results.push(image);
   }
 
   return results;
 }
 
-async function generatePageImage(payload, story, page, index) {
+async function generatePageImage(payload, page, index) {
   const analysis = payload.analysis || {};
   const composition = getPageFraming(index);
   const prompt = buildHiggsfieldPagePrompt({
-    nickname: payload.nickname || payload.childName,
     characters: analysis.characters || [payload.characterName || payload.characterIdentity].filter(Boolean),
     place: analysis.place || payload.theme,
     objects: analysis.objects || [],
     mood: analysis.mood,
-    title: story.titleKo || story.title,
-    pageText: page.ko,
+    visualDescription: page.visualDescription || page.en || page.ko,
     pageNumber: index + 1,
-    framing: page.framing || composition.framing,
-    textSide: page.textSide || composition.textSide
+    framing: page.framing || composition.framing
   });
   return generateHiggsfieldPageImage({ imageDataUrl: payload.imageDataUrl, prompt });
 }
@@ -499,10 +497,7 @@ async function handlePageArt(req, res) {
       return;
     }
 
-    const nickname = typeof body.nickname === "string" && body.nickname.trim() ? body.nickname.trim() : "아이";
-    const page = body.page && typeof body.page === "object" ? body.page : {};
     const pageIndex = Math.max(0, Number(body.pageIndex) || 0);
-    const titleKo = typeof body.titleKo === "string" ? body.titleKo : "";
     const { framing, textSide } = getPageFraming(pageIndex);
 
     if (!hasHiggsfieldCredentials()) {
@@ -512,16 +507,13 @@ async function handlePageArt(req, res) {
 
     const analysis = normalizeAnalysis(body.analysis);
     const prompt = buildHiggsfieldPagePrompt({
-      nickname,
       characters: analysis.characters,
       place: analysis.place,
       objects: analysis.objects,
       mood: analysis.mood,
-      title: titleKo,
-      pageText: page.ko,
+      visualDescription: typeof body.visualDescription === "string" ? body.visualDescription.slice(0, 240) : "",
       pageNumber: pageIndex + 1,
-      framing,
-      textSide
+      framing
     });
     const generatedImage = await generateHiggsfieldPageImage({ imageDataUrl, prompt });
     sendJson(res, 200, { imageDataUrl: generatedImage, demoMode: false, framing, textSide });

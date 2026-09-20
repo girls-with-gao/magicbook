@@ -23,6 +23,8 @@ describe("AI prompts", () => {
     expect(prompt).toContain("exact action, characters, setting, and relevant objects");
     expect(prompt).toContain("Refer to characters by their visual appearance, not by writing their names");
     expect(prompt).toContain("never dialogue or conversation bubbles");
+    expect(prompt).toContain("iconKey");
+    expect(prompt).toContain("exact list only");
     expect(prompt).not.toContain("Previous chapters");
   });
 

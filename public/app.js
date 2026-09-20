@@ -10,7 +10,7 @@ import { seedBooks } from "./shared/seed-books.js";
 import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.js";
 import { getCharacterBox, getPageFraming } from "./shared/page-composition.js";
 import { getRecurringWords, isCloseMatch, isPracticed, markPracticed } from "./shared/word-practice.js";
-import { childJourneySteps, choiceIconForText, homeActions, icons, missionHints } from "./shared/design-copy.js";
+import { childJourneySteps, choiceIconForChoice, homeActions, icons, missionHints } from "./shared/design-copy.js";
 import { buildParentRecord } from "./shared/parent-record.js";
 import { buildBookCover, formatCoverDate } from "./shared/book-cover.js";
 
@@ -968,7 +968,7 @@ function choiceHtml() {
         ${opening.choices
           .map((card, index) => {
             const selected = state.choiceSelection && state.choiceSelection.kind === "card" && state.choiceSelection.index === index;
-            const actionIcon = choiceIconForText(`${card.ko} ${card.en}`);
+            const actionIcon = choiceIconForChoice(card);
             return `
             <button type="button" role="radio" aria-checked="${selected}" class="choice-card ${selected ? "selected" : ""}" data-action="pick-card" data-index="${index}">
               <span class="choice-emoji" aria-hidden="true">${iconImg(actionIcon)}</span>

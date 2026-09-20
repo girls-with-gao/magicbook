@@ -9,13 +9,13 @@ export const icons = {
   home: "/assets/icons/icon-final-home.png",
   newDrawing: "/assets/icons/icon-final-new-drawing.png",
   myBook: "/assets/icons/icon-final-bookshelf.png",
-  friendBook: "/assets/icons/icon-friend-book.png",
+  friendBook: "/assets/icons/icon-final-friend-book.png",
   photoUpload: "/assets/icons/icon-final-photo-upload.png",
   parent: "/assets/icons/icon-final-parent-record.png",
-  review: "/assets/icons/icon-review-check.png",
+  review: "/assets/icons/icon-final-review.png",
   read: "/assets/icons/icon-final-read-book.png",
-  choice: "/assets/icons/icon-choice-cards-large.png",
-  paperMission: "/assets/icons/icon-paper-mission.png",
+  choice: "/assets/icons/icon-final-choice.png",
+  paperMission: "/assets/icons/icon-final-paper-mission.png",
   listen: "/assets/icons/icon-final-listen.png",
   speak: "/assets/icons/icon-final-speak.png",
   stamp: "/assets/icons/icon-final-stamp.png",
@@ -64,7 +64,7 @@ const choiceIconRules = [
   { icon: "actionHug", pattern: /(안아|위로|달래|hug|comfort)/i },
   { icon: "actionHelp", pattern: /(도와|구해|고쳐|help|save|fix)/i },
   { icon: "actionLookAround", pattern: /(구경|둘러|마을|look around|village)/i },
-  { icon: "actionSearch", pattern: /(찾|숨어|search|find|look for)/i },
+  { icon: "actionSearch", pattern: /(찾|숨어|자세히|살펴|관찰|search|find|look for|look closely|closely|examine|watch)/i },
   { icon: "actionOpen", pattern: /(열|문|상자|조개를 열|open)/i },
   { icon: "actionShine", pattern: /(빛내|밝|반짝|마법|등불|shine|light|magic)/i },
   { icon: "actionBuild", pattern: /(만들|짓|쌓|다리|build|make)/i },
@@ -74,9 +74,78 @@ const choiceIconRules = [
   { icon: "actionSpeak", pattern: /(말|묻|물어|이야기|speak|talk|ask)/i }
 ];
 
+export const choiceIconKeyValues = [
+  "gift",
+  "dance",
+  "singTogether",
+  "sing",
+  "listen",
+  "friend",
+  "introduce",
+  "hello",
+  "sleep",
+  "share",
+  "thanks",
+  "hide",
+  "cheer",
+  "hug",
+  "help",
+  "lookAround",
+  "search",
+  "open",
+  "shine",
+  "build",
+  "return",
+  "follow",
+  "together",
+  "speak",
+  "generic"
+];
+
+export const choiceIconKeyOptions = choiceIconKeyValues.join(" | ");
+
+const choiceIconByKey = {
+  gift: "actionGift",
+  dance: "actionDance",
+  singTogether: "actionSingTogether",
+  sing: "actionSing",
+  listen: "actionListen",
+  friend: "actionFriend",
+  introduce: "actionIntroduce",
+  hello: "actionHello",
+  sleep: "actionSleep",
+  share: "actionShare",
+  thanks: "actionThanks",
+  hide: "actionHide",
+  cheer: "actionCheer",
+  hug: "actionHug",
+  help: "actionHelp",
+  lookAround: "actionLookAround",
+  search: "actionSearch",
+  open: "actionOpen",
+  shine: "actionShine",
+  build: "actionBuild",
+  return: "actionReturn",
+  follow: "actionFollow",
+  together: "actionTogether",
+  speak: "actionSpeak",
+  generic: "choice"
+};
+
+export function cleanChoiceIconKey(value, fallback = "generic") {
+  return choiceIconKeyValues.includes(value) ? value : fallback;
+}
+
 export function choiceIconForText(value) {
   const text = String(value || "");
   return choiceIconRules.find((rule) => rule.pattern.test(text))?.icon || "choice";
+}
+
+export function choiceIconForChoice(choice) {
+  if (choice && typeof choice === "object" && typeof choice.iconKey === "string") {
+    return choiceIconByKey[cleanChoiceIconKey(choice.iconKey)];
+  }
+  return choiceIconForText(`${choice?.ko || ""} ${choice?.en || ""}`);
 }
 
 export const childJourneySteps = [

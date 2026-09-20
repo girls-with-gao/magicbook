@@ -54,10 +54,11 @@ describe("demo branching", () => {
 describe("normalize", () => {
   it("AI가 카드를 너무 많이 주면 3장으로 자르고, 모자라면 예제 카드로 바꾼다", () => {
     const many = normalizeOpening(
-      { choices: [1, 2, 3, 4, 5].map((n) => ({ emoji: "⭐", ko: `선택${n}`, en: `Choice ${n}` })) },
+      { choices: [1, 2, 3, 4, 5].map((n) => ({ emoji: "⭐", ko: `선택${n}`, en: `Choice ${n}`, iconKey: n === 1 ? "search" : "not-real" })) },
       meta
     );
     expect(many.choices.map((choice) => choice.ko)).toEqual(["선택1", "선택2", "선택3"]);
+    expect(many.choices.map((choice) => choice.iconKey)).toEqual(["search", "generic", "generic"]);
     expect(many.pages).toHaveLength(2);
 
     const few = normalizeOpening({ choices: [{ emoji: "⭐", ko: "하나", en: "One" }] }, meta);

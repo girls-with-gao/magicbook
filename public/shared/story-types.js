@@ -25,11 +25,13 @@
  * @property {string} emoji
  * @property {string} ko
  * @property {string} en
+ * @property {string} [iconKey]
  *
  * @typedef {Object} ChildChoice
  * @property {string} ko
  * @property {string} en
  * @property {boolean} byVoice
+ * @property {string} [iconKey]
  *
  * @typedef {Object} StoryOpening
  * @property {string} titleKo

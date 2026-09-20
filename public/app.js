@@ -1493,11 +1493,11 @@ function spreadContentHtml(book, spread, { first, last, complete, words, charact
     const seedIllustration = Boolean(book.origin && spread.chapter === 0 && chapter.author);
     content = `
       <div class="book-page-spread" style="display:grid;gap:18px;">
-        <div class="story-image" style="position:relative;height:clamp(220px,40vh,340px);overflow:hidden;border-radius:22px;">
+        <div class="story-image" style="position:relative;height:clamp(320px,68vh,760px);overflow:hidden;border-radius:22px;background:#fffdf6;">
           ${page.imageDataUrl
-            ? `<img src="${page.imageDataUrl}" alt="${spread.chapter + 1}편 동화 삽화" style="width:100%;height:100%;object-fit:cover;" />`
+            ? `<img src="${page.imageDataUrl}" alt="${spread.chapter + 1}편 동화 삽화" style="width:100%;height:100%;object-fit:contain;" />`
             : seedIllustration
-              ? `<img src="${chapter.imageDataUrl}" alt="친구가 그린 ${spread.chapter + 1}편 그림" style="width:100%;height:100%;object-fit:cover;object-position:${page.focus.x}% ${page.focus.y}%;" />`
+              ? `<img src="${chapter.imageDataUrl}" alt="친구가 그린 ${spread.chapter + 1}편 그림" style="width:100%;height:100%;object-fit:contain;" />`
               : `<div class="book-art-missing">
                   <p>${state.bookArtPending[artKey] ? "이 페이지 삽화를 다시 만들고 있어요…" : state.bookArtErrors[artKey] || "이전 저장본에는 이 페이지의 삽화가 저장되지 않았어요."}</p>
                   ${!state.bookArtPending[artKey] ? `<button type="button" data-action="generate-saved-page-art" data-chapter="${spread.chapter}" data-page="${spread.page}">이 페이지 삽화 만들기</button>` : ""}

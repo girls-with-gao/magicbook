@@ -263,36 +263,36 @@ const demoBranches = [
     questionKo: "반짝이는 조개에게 무엇을 해볼까?",
     questionEn: "What should we do with the shiny shell?",
     choices: [
-      { emoji: "👂", ko: "조개 소리 들어보기", en: "Listen to the shell" },
-      { emoji: "🎵", ko: "조개에게 노래 불러주기", en: "Sing to the shell" },
-      { emoji: "👋", ko: "조개에게 인사하기", en: "Say hello to the shell" }
+      { emoji: "👂", ko: "조개 소리 들어보기", en: "Listen to the shell", iconKey: "listen" },
+      { emoji: "🎵", ko: "조개에게 노래 불러주기", en: "Sing to the shell", iconKey: "sing" },
+      { emoji: "👋", ko: "조개에게 인사하기", en: "Say hello to the shell", iconKey: "hello" }
     ]
   },
   {
     questionKo: "방울이와 무엇을 해볼까?",
     questionEn: "What should we do with Bubbles?",
     choices: [
-      { emoji: "🏠", ko: "마을 구경하기", en: "Look around the village" },
-      { emoji: "🫧", ko: "같이 헤엄치기", en: "Swim together" },
-      { emoji: "🎁", ko: "선물 주기", en: "Give a present" }
+      { emoji: "🏠", ko: "마을 구경하기", en: "Look around the village", iconKey: "lookAround" },
+      { emoji: "🫧", ko: "같이 헤엄치기", en: "Swim together", iconKey: "together" },
+      { emoji: "🎁", ko: "선물 주기", en: "Give a present", iconKey: "gift" }
     ]
   },
   {
     questionKo: "혼자 있는 해파리에게 어떻게 할까?",
     questionEn: "What should we do for the lonely jellyfish?",
     choices: [
-      { emoji: "🤝", ko: "친구 하자고 하기", en: "Ask to be friends" },
-      { emoji: "🎶", ko: "같이 노래하기", en: "Sing together" },
-      { emoji: "🐟", ko: "방울이 소개하기", en: "Introduce Bubbles" }
+      { emoji: "🤝", ko: "친구 하자고 하기", en: "Ask to be friends", iconKey: "friend" },
+      { emoji: "🎶", ko: "같이 노래하기", en: "Sing together", iconKey: "singTogether" },
+      { emoji: "🐟", ko: "방울이 소개하기", en: "Introduce Bubbles", iconKey: "introduce" }
     ]
   },
   {
     questionKo: "이야기를 어떻게 끝낼까?",
     questionEn: "How should we end the story?",
     choices: [
-      { emoji: "💃", ko: "다 같이 춤추기", en: "Dance together" },
-      { emoji: "🎁", ko: "선물 주고 인사하기", en: "Give a gift and say bye" },
-      { emoji: "🌙", ko: "다 같이 잠들기", en: "Fall asleep together" }
+      { emoji: "💃", ko: "다 같이 춤추기", en: "Dance together", iconKey: "dance" },
+      { emoji: "🎁", ko: "선물 주고 인사하기", en: "Give a gift and say bye", iconKey: "gift" },
+      { emoji: "🌙", ko: "다 같이 잠들기", en: "Fall asleep together", iconKey: "sleep" }
     ]
   }
 ];

@@ -1,4 +1,5 @@
 import { createDemoEnding, createDemoOpening } from "./demo-data.js";
+import { cleanChoiceIconKey } from "./design-copy.js";
 import { CHOICE_COUNT, OPENING_PAGES, STORY_PAGES } from "./story-types.js";
 
 /** @typedef {{nickname: string, age: number, chapter: number}} Meta */
@@ -54,11 +55,15 @@ export function normalizeOpening(value, meta) {
     ? value.choices
         .filter((choice) => choice && typeof choice.ko === "string" && choice.ko.trim())
         .slice(0, CHOICE_COUNT)
-        .map((choice, index) => ({
-          emoji: text(choice.emoji, fallback.choices[index]?.emoji ?? "✨", 8),
-          ko: text(choice.ko, "", 40),
-          en: text(choice.en, choice.ko, 60)
-        }))
+        .map((choice, index) => {
+          const normalized = {
+            emoji: text(choice.emoji, fallback.choices[index]?.emoji ?? "✨", 8),
+            ko: text(choice.ko, "", 40),
+            en: text(choice.en, choice.ko, 60)
+          };
+          if (typeof choice.iconKey === "string") normalized.iconKey = cleanChoiceIconKey(choice.iconKey);
+          return normalized;
+        })
     : [];
   // 카드가 모자라면 예제 카드로 채우지 않고, 있는 카드만 쓴다(최소 2장).
   const finalChoices = choices.length >= 2 ? choices : fallback.choices;
@@ -131,7 +136,8 @@ export function parseChildChoice(value) {
   return {
     ko: choice.ko.trim().slice(0, 80),
     en: typeof choice.en === "string" ? choice.en.trim().slice(0, 120) : "",
-    byVoice: choice.byVoice === true
+    byVoice: choice.byVoice === true,
+    iconKey: typeof choice.iconKey === "string" ? cleanChoiceIconKey(choice.iconKey) : undefined
   };
 }
 

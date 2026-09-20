@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childJourneySteps, choiceIconForText, homeActions, icons, missionHints } from "../public/shared/design-copy.js";
+import { childJourneySteps, choiceIconForChoice, choiceIconForText, choiceIconKeyValues, homeActions, icons, missionHints } from "../public/shared/design-copy.js";
 
 describe("child-first design copy", () => {
   it("uses short child-facing home action labels", () => {
@@ -67,5 +67,13 @@ describe("child-first design copy", () => {
     expect(choiceIconForText("고마워 하기 Say thank you")).toBe("actionThanks");
     expect(choiceIconForText("숨바꼭질하기 Hide and seek")).toBe("actionHide");
     expect(choiceIconForText("응원하기 Cheer up")).toBe("actionCheer");
+  });
+
+  it("prefers structured choice icon keys over brittle text matching", () => {
+    expect(choiceIconKeyValues).toContain("search");
+    expect(choiceIconForChoice({ ko: "조개 물에 담그기", en: "Put the shell in the water", iconKey: "help" })).toBe("actionHelp");
+    expect(choiceIconForChoice({ ko: "조개 자세히 보기", en: "Look closely at the shell", iconKey: "search" })).toBe("actionSearch");
+    expect(choiceIconForChoice({ ko: "조개 자세히 보기", en: "Look closely at the shell" })).toBe("actionSearch");
+    expect(choiceIconForChoice({ ko: "처음 보는 행동", en: "A new action", iconKey: "not-real" })).toBe("choice");
   });
 });

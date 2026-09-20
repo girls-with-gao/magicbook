@@ -1,4 +1,5 @@
 import { CHOICE_COUNT, MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./story-types.js";
+import { choiceIconKeyOptions } from "./design-copy.js";
 
 /**
  * @param {{nickname: string, age: number}} params
@@ -89,6 +90,8 @@ Requirements:
 ${choiceRules}
 - Offer exactly ${CHOICE_COUNT} choices. Each choice is one short action phrase (max 12 Korean characters) with one fitting emoji.
 - Choices must be clearly different from each other, all kind and safe, and none may be "wrong".
+- Every choice must include iconKey, chosen from this exact list only: ${choiceIconKeyOptions}.
+- Choose iconKey by the action's meaning, not by matching a word. If no key fits clearly, use "generic".
 ${sharedRules(age)}
 
 Return only this JSON object:
@@ -100,7 +103,7 @@ Return only this JSON object:
   ],
   "questionKo": "string",
   "questionEn": "string",
-  "choices": [{ "emoji": "string", "ko": "string", "en": "string" }]
+  "choices": [{ "emoji": "string", "ko": "string", "en": "string", "iconKey": "${choiceIconKeyOptions}" }]
 }
 `.trim();
 }

@@ -19,6 +19,8 @@ describe("AI prompts", () => {
     expect(prompt).toContain("questionKo");
     expect(prompt).toContain("Korean and English");
     expect(prompt).toContain("at most 2 vocabulary words");
+    expect(prompt).toContain("iconKey");
+    expect(prompt).toContain("exact list only");
     expect(prompt).not.toContain("Previous chapters");
   });
 

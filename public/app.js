@@ -11,6 +11,8 @@ import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.j
 import { getCharacterBox, getPageFraming } from "./shared/page-composition.js";
 import { getRecurringWords, isCloseMatch, isPracticed, markPracticed } from "./shared/word-practice.js";
 import { childJourneySteps, choiceIconForText, homeActions, icons, missionHints } from "./shared/design-copy.js";
+import { buildParentRecord } from "./shared/parent-record.js";
+import { buildBookCover, formatCoverDate } from "./shared/book-cover.js";
 
 const root = document.querySelector("#app-root");
 
@@ -120,13 +122,7 @@ function bookDateTime(book) {
 }
 
 function formatBookDate(book) {
-  const value = book.updatedAt || book.createdAt;
-  if (!value) return "날짜 없음";
-  try {
-    return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(value));
-  } catch {
-    return "날짜 없음";
-  }
+  return formatCoverDate(book.updatedAt || book.createdAt);
 }
 
 function activateBook(book) {
@@ -1038,7 +1034,14 @@ function offlineHtml() {
           </div>
         </div>`
           : `
-        <div class="paper-prompt">${iconImg("stamp", "", "paper-prompt-icon")}<b>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</b></div>
+        <div class="completed-book-showcase">
+          ${state.book ? bookCoverHtml(state.book, "complete") : ""}
+          <div>
+            <p class="eyebrow">완성된 책</p>
+            <h3>${MAX_CHAPTERS}편짜리 동화책이 완성됐어요!</h3>
+            <p>책장에 보관해두고, 다시 읽거나 인쇄할 수 있어요.</p>
+          </div>
+        </div>
         <div class="offline-actions">
           <button class="primary-button" type="button" data-action="view-book">완성된 책 보기</button>
           <div class="quiet-actions">
@@ -1092,17 +1095,33 @@ function shelfLibraryHtml(books) {
   `;
 }
 
-function shelfLibraryCardHtml(book) {
-  const first = book.chapters[0];
-  const last = book.chapters.at(-1);
-  const complete = isBookFull(book);
-  const selected = state.book?.id === book.id;
+function bookCoverHtml(book, className = "") {
+  const cover = buildBookCover(book);
   return `
-    <button class="shelf-library-card ${selected ? "selected" : ""}" type="button" data-action="select-book" data-book-id="${escapeHtml(book.id)}" aria-pressed="${selected}">
-      <img src="${first.imageDataUrl}" alt="" />
+    <figure class="shelf-cover ${className}">
+      <div class="shelf-cover-art">
+        ${cover.imageDataUrl ? `<img src="${cover.imageDataUrl}" alt="" />` : ""}
+      </div>
+      <figcaption>
+        <span>${escapeHtml(cover.statusLabel)} · ${escapeHtml(cover.progressLabel)}</span>
+        <b>${escapeHtml(cover.title)}</b>
+        <small>${escapeHtml(cover.dateLabel)} · ${escapeHtml(cover.ownerLabel)}</small>
+      </figcaption>
+    </figure>
+  `;
+}
+
+function shelfLibraryCardHtml(book) {
+  const cover = buildBookCover(book);
+  const last = book.chapters.at(-1);
+  const selected = state.book?.id === book.id;
+  const label = `${cover.title}, ${cover.dateLabel}, ${cover.progressLabel}, ${cover.statusLabel}`;
+  return `
+    <button class="shelf-library-card ${selected ? "selected" : ""}" type="button" data-action="select-book" data-book-id="${escapeHtml(book.id)}" aria-pressed="${selected}" aria-label="${escapeHtml(label)}">
+      ${bookCoverHtml(book, "mini")}
       <span>
-        <b>${escapeHtml(first.story.titleKo)}</b>
-        <small>${formatBookDate(book)} · ${book.chapters.length}/${MAX_CHAPTERS}편 · ${complete ? "완성" : "진행 중"}</small>
+        <b>${escapeHtml(cover.title)}</b>
+        <small>${escapeHtml(cover.dateLabel)} · ${escapeHtml(cover.progressLabel)} · ${escapeHtml(cover.statusLabel)}</small>
         ${state.shelfView === "list" ? `<em>${escapeHtml(last.story.summaryKo)}</em>` : ""}
       </span>
     </button>
@@ -1110,16 +1129,16 @@ function shelfLibraryCardHtml(book) {
 }
 
 function shelfBookDetailHtml(book) {
-  const first = book.chapters[0];
+  const cover = buildBookCover(book);
   const last = book.chapters.at(-1);
   const complete = isBookFull(book);
   const places = uniqueValues(book.chapters.map((chapter) => chapter.analysis.place));
   const recurring = getRecurringWords(book);
   return `
     <article class="shelf-book-card">
-      <img src="${first.imageDataUrl}" alt="책 표지 그림" />
+      ${bookCoverHtml(book, "feature")}
       <div>
-        <p class="progress-label">${complete ? "완성" : "진행 중"} · ${book.chapters.length}/${MAX_CHAPTERS}편 · ${formatBookDate(book)}</p>
+        <p class="progress-label">${escapeHtml(cover.statusLabel)} · ${escapeHtml(cover.progressLabel)} · ${escapeHtml(cover.dateLabel)}</p>
         <h3>${escapeHtml(last.story.summaryKo)}</h3>
         <p class="shelf-question">${escapeHtml(last.story.offlinePromptKo)}</p>
         ${
@@ -1206,14 +1225,9 @@ function shelfHtml() {
 function parentRecordHtml() {
   const book = state.book;
   if (!book || !book.chapters.length) return "";
-  const chapters = book.chapters;
+  const record = buildParentRecord(book);
   const words = uniqueWords(book);
-  const places = uniqueValues(chapters.map((c) => c.analysis.place));
-  const moods = chapters.map((c) => c.analysis.mood).filter(Boolean);
-  const voiceCount = chapters.filter((c) => c.story.choice && c.story.choice.byVoice).length;
-  const last = chapters.at(-1);
   const name = escapeHtml(book.nickname);
-  const subjectName = escapeHtml(withParticle(book.nickname, "이가", "가"));
 
   return `
     <div class="parent-record">
@@ -1226,78 +1240,82 @@ function parentRecordHtml() {
       </div>
 
       <div class="stage-heading">
-        <p class="eyebrow">오늘 ${name}의 창작 기록</p>
-        <h2>오늘 남겨둘 장면</h2>
+        <p class="eyebrow">오늘 ${name}의 기록</p>
+        <h2>선택과 표현을 남겨두었어요</h2>
+        <p>${escapeHtml(record.disclaimer)}</p>
       </div>
 
-      <section class="record-observation">
-        <p>${chapters.length}편을 만들었고, ${chapters.filter((c) => c.story.choice).length}번은 ${subjectName} 다음 장면을 직접 골랐어요.</p>
-        <dl>
-          <div><dt>말로 남긴 선택</dt><dd>${voiceCount}번</dd></div>
-          <div><dt>새로 만난 단어</dt><dd>${words.length}개</dd></div>
-          ${
-            book.practiced && book.practiced.length
-              ? `<div><dt>오늘 말해본 단어</dt><dd>${book.practiced.length}개</dd></div>`
-              : ""
-          }
-        </dl>
+      <section class="record-observation" aria-label="오늘의 관찰">
+        <span>오늘의 관찰</span>
+        <p>${escapeHtml(record.observation)}</p>
+      </section>
+
+      <section class="record-question">
+        <span>오늘 물어볼 말</span>
+        <p>“${escapeHtml(record.followUpQuestion)}”</p>
+      </section>
+
+      <section class="record-cards" aria-label="오늘의 핵심 기록">
+        ${record.statCards
+          .map(
+            (card) => `<article class="record-card">
+          <b>${escapeHtml(card.value)}</b>
+          <small>${escapeHtml(card.label)}</small>
+        </article>`
+          )
+          .join("")}
       </section>
 
       ${
-        moods.length
+        record.focusItems.length
           ? `<section class="record-block">
-        <h3>오늘의 감정 흐름</h3>
-        <ol class="mood-flow">${moods.map((mood) => `<li>${escapeHtml(mood)}</li>`).join("")}</ol>
+        <h3>관심이 머문 것</h3>
+        <p class="record-places">${record.focusItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</p>
+      </section>`
+          : ""
+      }
+
+      ${
+        record.atmosphere.length
+          ? `<section class="record-block">
+        <h3>이야기 분위기</h3>
+        <ol class="mood-flow">${record.atmosphere.map((mood) => `<li>${escapeHtml(mood)}</li>`).join("")}</ol>
+      </section>`
+          : ""
+      }
+
+      ${
+        words.length || (book.practiced && book.practiced.length)
+          ? `<section class="record-block">
+        <h3>말과 단어</h3>
+        ${
+          words.length
+            ? `<ul class="word-cards compact">${words.slice(0, 6).map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}</ul>`
+            : ""
+        }
+        ${
+          book.practiced && book.practiced.length
+            ? `<p class="record-practiced">오늘 말해본 단어 ${book.practiced.length}개 — ${escapeHtml(book.practiced.join(", "))}</p>`
+            : ""
+        }
       </section>`
           : ""
       }
 
       <section class="record-block">
-        <h3>편마다 남긴 관찰</h3>
+        <h3>편마다 남긴 기록</h3>
         <ul class="record-list">
-          ${chapters
-            .map((chapter, index) => {
-              const choice = chapter.story.choice;
-              return `<li>
-                <p class="record-title">${index + 1}편 · ${escapeHtml(chapter.story.titleKo)}</p>
-                ${choice ? `<p class="record-choice">${choice.byVoice ? "말로" : "골라서"} “${escapeHtml(choice.ko)}”</p>` : ""}
-                ${chapter.story.parentNoteKo ? `<p class="record-note">${escapeHtml(chapter.story.parentNoteKo)}</p>` : ""}
-              </li>`;
-            })
+          ${record.episodes
+            .map(
+              (episode) => `<li>
+                <p class="record-title">${episode.number}편 · ${escapeHtml(episode.title)}</p>
+                ${episode.choice ? `<p class="record-choice">${episode.choice.byVoice ? "말로" : "골라서"} “${escapeHtml(episode.choice.ko)}”</p>` : ""}
+                ${episode.note ? `<p class="record-note">${escapeHtml(episode.note)}</p>` : ""}
+                ${episode.mood ? `<p class="record-mood">이야기 분위기: ${escapeHtml(episode.mood)}</p>` : ""}
+              </li>`
+            )
             .join("")}
         </ul>
-      </section>
-
-      ${
-        places.length
-          ? `<section class="record-block">
-        <h3>상상이 다녀온 곳</h3>
-        <p class="record-places">${escapeHtml(places.join("  →  "))}</p>
-      </section>`
-          : ""
-      }
-
-      ${
-        words.length
-          ? `<section class="record-block">
-        <h3>새로 만난 영어 단어</h3>
-        <ul class="word-cards">${words.map((w) => `<li><b>${escapeHtml(w.en)}</b><span>${escapeHtml(w.ko)}</span></li>`).join("")}</ul>
-      </section>`
-          : ""
-      }
-
-      ${
-        book.practiced && book.practiced.length
-          ? `<section class="record-block">
-        <h3>오늘 말해본 단어</h3>
-        <p class="record-practiced">오늘 말해본 단어 ${book.practiced.length}개 — ${escapeHtml(book.practiced.join(", "))}</p>
-      </section>`
-          : ""
-      }
-
-      <section class="record-block record-question">
-        <h3>오늘 함께 나눌 질문</h3>
-        <p>${escapeHtml(last.story.offlinePromptKo)}</p>
       </section>
 
       <p class="record-privacy">이 기록은 이 기기에만 저장돼요. 서버로 보내지 않아요.</p>

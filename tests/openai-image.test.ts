@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildHiggsfieldPagePrompt, HIGGSFIELD_NEGATIVE_PROMPT } from "../lib/higgsfield.js";
+import { buildOpenAIPagePrompt, OPENAI_IMAGE_NEGATIVE_PROMPT } from "../lib/openai-image.js";
 import { compositionDefaults, getPageFraming } from "../public/shared/page-composition.js";
 
-describe("Higgsfield storybook prompt", () => {
+describe("OpenAI storybook image prompt", () => {
   it("uses the child's drawing as the character and style reference, not as a scene to copy", () => {
-    const prompt = buildHiggsfieldPagePrompt({
+    const prompt = buildOpenAIPagePrompt({
       characters: ["트리케라톱스"],
       place: "공룡 박물관",
       objects: ["공룡 뼈"],
@@ -15,10 +15,9 @@ describe("Higgsfield storybook prompt", () => {
     });
 
     expect(prompt).toContain("authoritative visual reference");
-    expect(prompt).toContain("same silhouette and proportions");
-    expect(prompt).toContain("exact main colors");
-    expect(prompt).toContain("Follow the parent-confirmed character identity");
-    expect(prompt).toContain("Ignore and replace its original background");
+    expect(prompt).toContain("same simple silhouette");
+    expect(prompt).toContain("main colors");
+    expect(prompt).toContain("Ignore paper edges");
     expect(prompt).toContain("speech bubbles, thought bubbles, labels, captions");
     expect(prompt).toContain("remove them completely instead of preserving");
     expect(prompt).toContain("Do not add empty bubbles");
@@ -26,20 +25,18 @@ describe("Higgsfield storybook prompt", () => {
     expect(prompt).toContain("트리케라톱스");
     expect(prompt).toContain("공룡 박물관");
     expect(prompt).toContain("A child-drawn triceratops gently greets Sumin beside a dinosaur skeleton in a museum hall.");
-    expect(prompt).toContain("The illustration contains no text of any kind and no comic devices");
-    expect(prompt).toContain("lettering, words, numbers, logos");
-    expect(prompt).toContain("noticeboards, exhibit plaques, diagrams, screens");
-    expect(prompt).toContain("silent picture-book illustration");
-    expect(prompt).toContain("no comic devices");
-    expect(prompt).toContain("no speech bubbles, thought bubbles, dialogue balloons, callouts");
-    expect(prompt).toContain("different story moment and camera shot");
+    expect(prompt).toContain("No speech bubbles");
+    expect(prompt).toContain("no text");
+    expect(prompt).toContain("no signs");
+    expect(prompt).toContain("full-bleed, silent picture-book illustration");
+    expect(prompt).toContain("different story moment");
     expect(prompt).not.toContain("area below the illustration");
     expect(prompt).not.toContain("유나");
     expect(prompt).not.toContain("유나의 박물관 모험");
     expect(prompt).not.toContain("큰 발자국을 발견했어요");
-    expect(HIGGSFIELD_NEGATIVE_PROMPT).toContain("speech bubbles");
-    expect(HIGGSFIELD_NEGATIVE_PROMPT).toContain("thought bubbles");
-    expect(HIGGSFIELD_NEGATIVE_PROMPT).toContain("writing of any kind");
+    expect(OPENAI_IMAGE_NEGATIVE_PROMPT).toContain("No speech bubbles");
+    expect(OPENAI_IMAGE_NEGATIVE_PROMPT).toContain("no thought bubbles");
+    expect(OPENAI_IMAGE_NEGATIVE_PROMPT).toContain("no text");
   });
 
   it("varies the four page shots from establishing view to action, detail, and resolution", () => {

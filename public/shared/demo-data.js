@@ -4,35 +4,35 @@ import { withParticle, withParticle as childNameWithParticle } from "./korean.js
 /** @type {import('./story-types.js').DrawingAnalysis} */
 export const demoAnalysis = {
   characters: ["수민이", "엄마"],
-  place: "바닷가",
-  objects: ["반짝이는 조개", "파도"],
-  mood: "신나고 궁금한 기분",
-  diaryText: "오늘 엄마와 바닷가에서 반짝이는 조개를 찾았다."
+  place: "여행길",
+  objects: ["빨간 자동차", "파란 길"],
+  mood: "신나고 들뜬 기분",
+  diaryText: "오늘 가족과 신나는 여행을 떠났다."
 };
 
 /** @type {import('./story-types.js').DrawingAnalysis[]} */
 const demoAnalyses = [
   demoAnalysis,
   {
-    characters: ["수민이", "노란 물고기"],
-    place: "조개 속 바다 마을",
-    objects: ["꺼진 등불", "작은 집들"],
-    mood: "궁금하고 조금 걱정되는 기분",
-    diaryText: "조개 속에 바다 마을이 있었다. 물고기 친구를 만났다."
+    characters: ["수민이", "작은 친구"],
+    place: "물가와 공원",
+    objects: ["큰 나무", "파란 물길"],
+    mood: "반갑고 궁금한 기분",
+    diaryText: "물가 옆 공원에서 새 친구를 만났다."
   },
   {
-    characters: ["수민이", "노란 물고기", "해파리"],
-    place: "깊은 바닷속",
-    objects: ["빛나는 해파리", "산호"],
-    mood: "두근두근한 기분",
-    diaryText: "깊은 바다에서 반짝이는 해파리를 만났다."
+    characters: ["수민이", "친구들"],
+    place: "강가 끝 상상 놀이공원",
+    objects: ["반짝이는 불빛", "빙글빙글 놀이기구"],
+    mood: "두근두근 신나는 기분",
+    diaryText: "강가 길 끝에서 상상 놀이공원을 발견하고 빙글빙글 놀이기구를 탔다."
   },
   {
-    characters: ["수민이", "물고기들", "해파리"],
-    place: "환해진 바다 마을",
-    objects: ["켜진 등불", "빛 조각"],
-    mood: "기쁘고 뿌듯한 기분",
-    diaryText: "바다 마을에 불이 다시 켜졌다. 다 같이 춤을 췄다."
+    characters: ["수민이", "가족", "친구"],
+    place: "집으로 돌아온 길",
+    objects: ["노란 옷", "긴 머리 친구"],
+    mood: "따뜻하고 뿌듯한 기분",
+    diaryText: "집에 돌아와 오늘 여행 이야기를 들려주었다."
   }
 ];
 
@@ -56,7 +56,7 @@ export function demoAnalysisFor(chapter = 1) {
  */
 export function demoSampleImagePath(chapter = 1) {
   const index = chapterIndex(chapter);
-  return index === 0 ? "/sample-drawing.svg" : `/sample-drawing-${index + 1}.svg`;
+  return `/sample-trip-${index + 1}.jpeg`;
 }
 
 /**
@@ -70,176 +70,176 @@ export function createDemoStory({ nickname = "수민", age: _age = 7, chapter = 
 
   const chapters = [
     {
-      titleKo: `${nameAnd} 조개의 비밀`,
-      titleEn: `${name} and the Secret Shell`,
+      titleKo: `${nameAnd} 신나는 여행`,
+      titleEn: `${name}'s Exciting Trip`,
       pages: [
         {
-          ko: `${nameTopic} 엄마와 바닷가에 갔어요. 파도가 반짝반짝 웃고 있었어요.`,
-          en: `${name} went to the beach with Mom. The waves sparkled and smiled.`,
+          ko: `${nameTopic} 가족과 함께 신나는 여행을 떠났어요.`,
+          en: `${name} went on an exciting trip with family.`,
           words: [
-            { ko: "바닷가", en: "beach" },
-            { ko: "파도", en: "wave" }
+            { ko: "여행", en: "trip" },
+            { ko: "가족", en: "family" }
           ],
           focus: { x: 50, y: 50 }
         },
         {
-          ko: `${nameTopic} 모래 사이에서 반짝이는 조개를 발견했어요.`,
-          en: `${name} found a shiny shell in the sand.`,
+          ko: "파란 길 위에서 빨간 자동차가 씽씽 달렸어요.",
+          en: "A red car zoomed along the blue road.",
           words: [
-            { ko: "조개", en: "shell" },
-            { ko: "반짝이는", en: "shiny" }
+            { ko: "자동차", en: "car" },
+            { ko: "파란", en: "blue" }
           ],
-          focus: { x: 32, y: 62 }
+          focus: { x: 48, y: 55 }
         },
         {
-          ko: "귀에 가까이 대자, 조개 속에서 작은 바다 노래가 들렸어요.",
-          en: "A tiny sea song came from inside the shell.",
+          ko: "창밖에는 모르는 길과 큰 하늘이 지나갔어요.",
+          en: "Outside the window, a new road and a big sky passed by.",
           words: [
-            { ko: "노래", en: "song" },
-            { ko: "듣다", en: "listen" }
+            { ko: "하늘", en: "sky" },
+            { ko: "길", en: "road" }
           ],
-          focus: { x: 68, y: 44 }
+          focus: { x: 62, y: 34 }
         },
         {
-          ko: `조개는 ${name}에게 속삭였어요. “나의 다음 이야기를 그려줄래?”`,
-          en: `The shell whispered, "Will you draw my next story?"`,
+          ko: `${nameTopic} 말했어요. “다음에는 어디로 가볼까?”`,
+          en: `${name} said, "Where should we go next?"`,
           words: [
-            { ko: "속삭이다", en: "whisper" },
-            { ko: "그리다", en: "draw" }
+            { ko: "다음", en: "next" },
+            { ko: "가다", en: "go" }
           ],
           focus: { x: 50, y: 50 }
         }
       ],
-      offlinePromptKo: "조개 안에는 어떤 세상이 있을까요? 다음 장면을 종이에 그려보세요.",
-      offlinePromptEn: "What world is inside the shell? Draw the next scene on paper.",
-      summaryKo: `${nameTopic} 엄마와 바닷가에서 노래하는 조개를 찾았다. 조개가 다음 이야기를 그려 달라고 속삭였다.`
+      offlinePromptKo: "여행길 다음에는 어떤 장소가 나올까요? 종이에 그려보세요.",
+      offlinePromptEn: "What place comes next on the trip? Draw it on paper.",
+      summaryKo: `${nameTopic} 가족과 신나는 여행을 떠났다. 파란 길을 지나며 다음 장소를 상상했다.`
     },
     {
-      titleKo: "조개 속 바다 마을",
-      titleEn: "The Sea Village in the Shell",
+      titleKo: "물가에서 만난 친구",
+      titleEn: "A Friend by the Water",
       pages: [
         {
-          ko: `${nameTopic} 조개 속으로 쏙 들어갔어요. 그곳엔 작은 바다 마을이 있었어요.`,
-          en: `${name} slipped into the shell and found a tiny sea village.`,
+          ko: `${nameTopic} 물가 옆 공원에 도착했어요.`,
+          en: `${name} arrived at a park by the water.`,
           words: [
-            { ko: "조개", en: "shell" },
-            { ko: "마을", en: "village" }
+            { ko: "물가", en: "waterside" },
+            { ko: "공원", en: "park" }
           ],
           focus: { x: 50, y: 55 }
         },
         {
-          ko: "노란 물고기 ‘방울이’가 반갑게 인사했어요.",
-          en: "A yellow fish named Bubbles said hello.",
+          ko: "큰 나무 아래에서 작은 친구가 손을 흔들었어요.",
+          en: "Under a big tree, a little friend waved hello.",
           words: [
-            { ko: "물고기", en: "fish" },
-            { ko: "노란", en: "yellow" }
+            { ko: "나무", en: "tree" },
+            { ko: "친구", en: "friend" }
           ],
-          focus: { x: 30, y: 45 }
+          focus: { x: 44, y: 40 }
         },
         {
-          ko: "방울이는 마을의 등불이 모두 꺼져서 걱정이라고 했어요.",
-          en: "Bubbles was worried because all the village lights went out.",
+          ko: "친구는 물길 끝에서 음악 소리와 반짝이는 불빛이 난다고 했어요.",
+          en: "The friend said music and twinkling lights came from the end of the water path.",
           words: [
-            { ko: "등불", en: "light" },
-            { ko: "걱정", en: "worry" }
+            { ko: "음악", en: "music" },
+            { ko: "불빛", en: "light" }
           ],
-          focus: { x: 66, y: 50 }
+          focus: { x: 56, y: 58 }
         },
         {
-          ko: `${nameTopic} 씩씩하게 말했어요. “내가 빛을 찾아볼게!”`,
-          en: `${name} said bravely, "I will find the light!"`,
+          ko: `${nameTopic} 씩씩하게 말했어요. “같이 불빛을 따라가보자!”`,
+          en: `${name} said bravely, "Let's follow the lights together!"`,
           words: [
-            { ko: "찾다", en: "find" },
-            { ko: "씩씩한", en: "brave" }
+            { ko: "같이", en: "together" },
+            { ko: "따라가다", en: "follow" }
           ],
           focus: { x: 50, y: 50 }
         }
       ],
-      offlinePromptKo: "마을의 빛은 어디에 숨어 있을까요? 빛을 찾으러 가는 장면을 그려보세요.",
-      offlinePromptEn: "Where is the village light hiding? Draw the scene where you go to find it.",
-      summaryKo: `${nameTopic} 조개 속 바다 마을에서 물고기 방울이를 만났다. 꺼진 마을 등불을 되찾아 주기로 약속했다.`
+      offlinePromptKo: "강가 길 끝의 불빛을 따라가면 어떤 신나는 장소가 나올까요? 그 장면을 그려보세요.",
+      offlinePromptEn: "What exciting place will appear if you follow the lights at the end of the riverside path? Draw that scene.",
+      summaryKo: `${nameTopic} 물가 옆 공원에서 새 친구를 만났다. 강가 길 끝의 불빛과 음악을 따라가기로 했다.`
     },
     {
-      titleKo: "외로운 해파리의 선물",
-      titleEn: "The Lonely Jellyfish's Gift",
+      titleKo: "강가 끝 놀이공원",
+      titleEn: "The Amusement Park by the River",
       pages: [
         {
-          ko: `${nameAnd} 방울이는 깊은 바닷속으로 내려갔어요.`,
-          en: `${name} and Bubbles swam deep into the sea.`,
+          ko: `${nameAnd} 친구는 불빛을 따라가 강가 끝 놀이공원에 도착했어요.`,
+          en: `${name} and the friend followed the lights to an amusement park by the river.`,
           words: [
-            { ko: "깊은", en: "deep" },
-            { ko: "바다", en: "sea" }
+            { ko: "강가", en: "riverside" },
+            { ko: "놀이공원", en: "amusement park" }
           ],
           focus: { x: 40, y: 40 }
         },
         {
-          ko: "산호 뒤에서 해파리가 혼자 반짝이고 있었어요.",
-          en: "Behind the coral, a jellyfish glowed all alone.",
+          ko: "빙글빙글 놀이기구가 하늘까지 올라갔어요.",
+          en: "A spinning ride went all the way up to the sky.",
           words: [
-            { ko: "산호", en: "coral" },
-            { ko: "해파리", en: "jellyfish" }
+            { ko: "빙글빙글", en: "spin" },
+            { ko: "올라가다", en: "go up" }
           ],
-          focus: { x: 62, y: 45 }
+          focus: { x: 60, y: 45 }
         },
         {
-          ko: "“나랑 친구 해 줄래?” 해파리가 수줍게 물었어요.",
-          en: '"Will you be my friend?" the jellyfish asked shyly.',
+          ko: "친구들은 무섭기도 하고 재미있기도 해서 크게 웃었어요.",
+          en: "The friends laughed because it felt scary and fun.",
           words: [
-            { ko: "친구", en: "friend" },
-            { ko: "수줍은", en: "shy" }
+            { ko: "재미있는", en: "fun" },
+            { ko: "웃다", en: "smile" }
           ],
           focus: { x: 60, y: 35 }
         },
         {
-          ko: "해파리는 고맙다며 빛 한 조각을 나눠 주었어요.",
-          en: "To say thank you, the jellyfish shared a piece of its light.",
+          ko: `${nameTopic} 오늘 본 장면을 꼭 들려주고 싶었어요.`,
+          en: `${name} wanted to tell everyone about the scene.`,
           words: [
-            { ko: "나누다", en: "share" },
-            { ko: "고마워", en: "thank you" }
+            { ko: "들려주다", en: "tell" },
+            { ko: "오늘", en: "today" }
           ],
           focus: { x: 50, y: 50 }
         }
       ],
-      offlinePromptKo: "나눠 받은 빛으로 바다 마을을 어떻게 밝혀 줄까요? 그 장면을 그려보세요.",
-      offlinePromptEn: "How will you light up the sea village with the gift? Draw that scene.",
-      summaryKo: "깊은 바닷속에서 외로운 해파리와 친구가 되었다. 해파리가 마을을 밝힐 빛 한 조각을 나눠 주었다."
+      offlinePromptKo: "놀이공원에서 돌아와 가족이나 친구에게 오늘 이야기를 들려주는 장면을 그려보세요.",
+      offlinePromptEn: "Draw a scene where you come back from the amusement park and tell family or friends about today.",
+      summaryKo: `${nameTopic} 친구와 불빛을 따라 강가 끝 놀이공원에 갔다. 빙글빙글 놀이기구를 타고 오늘 본 장면을 들려주고 싶어졌다.`
     },
     {
-      titleKo: "다시 환해진 바다 마을",
-      titleEn: "The Sea Village Shines Again",
+      titleKo: "오늘의 여행 이야기",
+      titleEn: "Today's Trip Story",
       pages: [
         {
-          ko: `${nameTopic} 빛 조각을 마을 한가운데에 살며시 올려 두었어요.`,
-          en: `${name} gently placed the piece of light in the middle of the village.`,
+          ko: `${nameTopic} 집에 돌아와 가족과 친구를 만났어요.`,
+          en: `${name} came home and met family and friends.`,
           words: [
-            { ko: "가운데", en: "middle" },
-            { ko: "살며시", en: "gently" }
+            { ko: "집", en: "home" },
+            { ko: "돌아오다", en: "come back" }
           ],
           focus: { x: 50, y: 55 }
         },
         {
-          ko: "마을의 등불이 하나둘 반짝 켜졌어요.",
-          en: "One by one, the village lights turned on.",
+          ko: "수민이는 신나는 여행 이야기를 천천히 들려주었어요.",
+          en: `${name} slowly told the exciting trip story.`,
           words: [
-            { ko: "켜지다", en: "turn on" },
-            { ko: "하나둘", en: "one by one" }
+            { ko: "이야기", en: "story" },
+            { ko: "천천히", en: "slowly" }
           ],
           focus: { x: 35, y: 45 }
         },
         {
-          ko: "물고기들과 해파리가 다 함께 춤을 추었어요.",
-          en: "The fish and the jellyfish danced together.",
+          ko: "모두는 어떤 장면이 제일 재미있었는지 물어보았어요.",
+          en: "Everyone asked which scene was the most fun.",
           words: [
-            { ko: "춤", en: "dance" },
-            { ko: "함께", en: "together" }
+            { ko: "장면", en: "scene" },
+            { ko: "재미", en: "fun" }
           ],
           focus: { x: 65, y: 50 }
         },
         {
-          ko: `${nameTopic} 엄마에게 돌아와 오늘의 모험을 들려주었어요. 끝.`,
-          en: `${name} came back to Mom and told her about the adventure. The end.`,
+          ko: `${nameTopic} 웃으며 말했어요. “다음에도 또 여행 가고 싶어!” 끝.`,
+          en: `${name} smiled and said, "I want to travel again next time!" The end.`,
           words: [
-            { ko: "모험", en: "adventure" },
+            { ko: "다음", en: "next" },
             { ko: "끝", en: "the end" }
           ],
           focus: { x: 50, y: 50 }
@@ -247,7 +247,7 @@ export function createDemoStory({ nickname = "수민", age: _age = 7, chapter = 
       ],
       offlinePromptKo: "오늘 완성한 책의 표지를 종이에 그려볼까요?",
       offlinePromptEn: "Can you draw the cover of your finished book on paper?",
-      summaryKo: "빛 조각으로 바다 마을을 다시 밝혔다. 모두 함께 춤을 추고, 엄마에게 돌아와 모험 이야기를 들려주었다."
+      summaryKo: `${nameTopic} 집에 돌아와 가족과 친구에게 여행 이야기를 들려주었다. 다음에도 또 여행을 가고 싶다고 말했다.`
     }
   ];
 
@@ -260,39 +260,39 @@ export function createDemoStory({ nickname = "수민", age: _age = 7, chapter = 
  * @type {DemoBranch[]} */
 const demoBranches = [
   {
-    questionKo: "반짝이는 조개에게 무엇을 해볼까?",
-    questionEn: "What should we do with the shiny shell?",
+    questionKo: "여행길에서 무엇을 해볼까?",
+    questionEn: "What should we do on the trip?",
     choices: [
-      { emoji: "👂", ko: "조개 소리 들어보기", en: "Listen to the shell", iconKey: "listen" },
-      { emoji: "🎵", ko: "조개에게 노래 불러주기", en: "Sing to the shell", iconKey: "sing" },
-      { emoji: "👋", ko: "조개에게 인사하기", en: "Say hello to the shell", iconKey: "hello" }
+      { emoji: "🏞️", ko: "새 장소 찾아가기", en: "Find a new place", iconKey: "search" },
+      { emoji: "🎵", ko: "차 안에서 노래하기", en: "Sing in the car", iconKey: "sing" },
+      { emoji: "👋", ko: "밖에 손 흔들기", en: "Wave outside", iconKey: "hello" }
     ]
   },
   {
-    questionKo: "방울이와 무엇을 해볼까?",
-    questionEn: "What should we do with Bubbles?",
+    questionKo: "새 친구와 무엇을 해볼까?",
+    questionEn: "What should we do with the new friend?",
     choices: [
-      { emoji: "🏠", ko: "마을 구경하기", en: "Look around the village", iconKey: "lookAround" },
-      { emoji: "🫧", ko: "같이 헤엄치기", en: "Swim together", iconKey: "together" },
+      { emoji: "🏠", ko: "공원 구경하기", en: "Look around the park", iconKey: "lookAround" },
+      { emoji: "🫧", ko: "물가 따라가기", en: "Follow the water path", iconKey: "follow" },
       { emoji: "🎁", ko: "선물 주기", en: "Give a present", iconKey: "gift" }
     ]
   },
   {
-    questionKo: "혼자 있는 해파리에게 어떻게 할까?",
-    questionEn: "What should we do for the lonely jellyfish?",
+    questionKo: "상상 놀이공원에서 무엇을 해볼까?",
+    questionEn: "What should we do at the imaginary amusement park?",
     choices: [
-      { emoji: "🤝", ko: "친구 하자고 하기", en: "Ask to be friends", iconKey: "friend" },
-      { emoji: "🎶", ko: "같이 노래하기", en: "Sing together", iconKey: "singTogether" },
-      { emoji: "🐟", ko: "방울이 소개하기", en: "Introduce Bubbles", iconKey: "introduce" }
+      { emoji: "🎡", ko: "빙글빙글 놀이기구 타기", en: "Ride the spinning ride", iconKey: "dance" },
+      { emoji: "🎶", ko: "친구와 노래하기", en: "Sing with a friend", iconKey: "singTogether" },
+      { emoji: "🤝", ko: "새 친구 소개하기", en: "Introduce a new friend", iconKey: "introduce" }
     ]
   },
   {
     questionKo: "이야기를 어떻게 끝낼까?",
     questionEn: "How should we end the story?",
     choices: [
-      { emoji: "💃", ko: "다 같이 춤추기", en: "Dance together", iconKey: "dance" },
-      { emoji: "🎁", ko: "선물 주고 인사하기", en: "Give a gift and say bye", iconKey: "gift" },
-      { emoji: "🌙", ko: "다 같이 잠들기", en: "Fall asleep together", iconKey: "sleep" }
+      { emoji: "🏠", ko: "집에 가서 이야기하기", en: "Go home and tell the story", iconKey: "return" },
+      { emoji: "🎁", ko: "친구에게 선물 주기", en: "Give a gift to a friend", iconKey: "gift" },
+      { emoji: "🌙", ko: "여행 꿈꾸며 잠들기", en: "Fall asleep dreaming of the trip", iconKey: "sleep" }
     ]
   }
 ];

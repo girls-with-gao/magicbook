@@ -44,8 +44,11 @@ Previous chapters:
 ${history}
 
 Continuation rules:
-- Keep the same characters, names, and world, and continue naturally from the last chapter.
-- The new drawing is the child's idea for the next scene; weave its content in as what happens next.${ending}
+- Treat the previous chapter and the child's last choice as the story engine. Treat the new drawing as the child's sketch of what happened next, not as a separate new story.
+- Keep the same characters, names, world, and emotional thread. Do not restart from the new drawing as if it is page 1 of a new book.
+- Begin this chapter by showing the result of the previous choice, then let details from the new drawing appear naturally inside that result.
+- If the new drawing changes the place, add a simple cause-and-effect bridge from the previous place first (for example: following a path, sound, light, invitation, or object). Do not jump abruptly to an unrelated location.${ending}
+${chapterNumber >= MAX_CHAPTERS ? "- For the final chapter, if the drawing includes a parent or family figure, use it as the child coming back and telling the day's adventure, not as a new side story." : ""}
 `;
 }
 
@@ -79,8 +82,9 @@ export function buildOpeningPrompt({ nickname, age, analysis, previousChapters =
   const choiceRules = finalChapter
     ? `- This is the last chapter of the book, so the question must ask how to END the story (e.g. "이야기를 어떻게 끝낼까?").
 - All ${CHOICE_COUNT} choices must be gentle ways to close the adventure — going home, giving a gift, saying goodbye, falling asleep together — never a new adventure.`
-    : `- Ask one very short question a child can answer (Korean and English), e.g. "조개에게 무엇을 해볼까?".
-- Offer choices that push the story forward without ending it.`;
+    : `- Ask one very short question a child can answer (Korean and English), e.g. "다음에는 무엇을 해볼까?".
+- Offer choices that change the story direction through the child's action, not by suddenly naming a new unrelated place.
+- Each choice should be a clear bridge the child can draw next on paper, without ending it.`;
   return `
 You create a safe, warm, interactive story for a ${age}-year-old child using the nickname "${nickname}".
 The child will choose what happens next, so write only the beginning.
@@ -90,6 +94,7 @@ ${buildContinuationSection(previousChapters)}
 Requirements:
 - Return exactly ${OPENING_PAGES} pages: pages 1-${OPENING_PAGES} of a ${STORY_PAGES}-page story. Do not resolve anything yet.
 - Page ${OPENING_PAGES} must end at a clear decision point for ${nickname}.
+- If this is chapter 2 or later, pages 1-${OPENING_PAGES} must continue from the previous chapter summary before interpreting the new drawing. The uploaded drawing should feel like the child's next scene in the same story, not a hard reset.
 ${choiceRules}
 - Offer exactly ${CHOICE_COUNT} choices. Each choice is one short action phrase (max 12 Korean characters) with one fitting emoji.
 - Choices must be clearly different from each other, all kind and safe, and none may be "wrong".
@@ -115,10 +120,15 @@ Return only this JSON object:
  * @param {import('./story-types.js').EndingRequest} params
  */
 export function buildEndingPrompt({ nickname, age, analysis, previousChapters = [], opening, choice }) {
+  const chapterNumber = previousChapters.length + 1;
+  const isPenultimateChapter = chapterNumber === MAX_CHAPTERS - 1;
   const openingText = opening.pages.map((page, index) => `${index + 1}. ${page.ko} / ${page.en}`).join("\n");
   const source = choice.byVoice
     ? "The child said this idea out loud (speech recognition may contain small errors; keep its intent)"
     : "The child picked this card";
+  const offlinePromptRule = isPenultimateChapter
+    ? `- End with an offline drawing prompt that specifically asks the child to draw coming back home and telling a parent or family member about today's adventure. Do not ask for another amusement-park action, ride, or friends' expression.`
+    : `- End with an offline drawing prompt that asks the child to leave the screen and draw the next scene on paper.`;
   return `
 You continue a safe, warm, interactive story for a ${age}-year-old child using the nickname "${nickname}".
 Drawing diary analysis confirmed by a parent:
@@ -133,9 +143,10 @@ ${source}: "${choice.ko}"${choice.en && choice.en !== choice.ko ? ` / "${choice.
 Requirements:
 - Return exactly ${STORY_PAGES - OPENING_PAGES} pages: pages ${OPENING_PAGES + 1}-${STORY_PAGES}.
 - Page ${OPENING_PAGES + 1} must show the child's choice happening, clearly and respectfully. The child's idea is the turning point.
+- Do not make the uploaded drawing and the generated illustration feel like a closed pair. The generated pages must carry the child's choice forward and set up the next paper drawing.
 - If the idea is unsafe or unclear, gently turn it into a kind, safe version with the same spirit instead of ignoring it.
 - The final page must gently open the ending.
-- End with an offline drawing prompt that asks the child to leave the screen and draw the next scene on paper.
+${offlinePromptRule}
 ${sharedRules(age)}
 
 Return only this JSON object:

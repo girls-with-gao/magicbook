@@ -4,7 +4,8 @@
 import { withParticle } from "./shared/korean.js";
 import { transitionStage } from "./shared/wizard.js";
 import { combineStory } from "./shared/story-normalize.js";
-import { demoSampleImagePath } from "./shared/demo-data.js";
+import { demoAnalysisFor, demoSampleImagePath } from "./shared/demo-data.js";
+import { withPreferredDiaryText } from "./shared/analysis-defaults.js";
 import { appendChapter, clearBook, isBookFull, loadBook, loadBookLibrary, saveBook } from "./shared/book-storage.js";
 import { seedBooks } from "./shared/seed-books.js";
 import { MAX_CHAPTERS, OPENING_PAGES, STORY_PAGES } from "./shared/story-types.js";
@@ -47,6 +48,7 @@ const state = {
   imageDataUrl: "",
   imageReferenceDataUrl: "",
   imageName: "",
+  preferredDiaryText: "",
   draftUnsaved: false,
   privacyChecked: false,
   analysis: null,
@@ -212,6 +214,23 @@ function sampleToPng(src) {
     image.onerror = () => reject(new Error("예제 그림을 불러오지 못했어요."));
     image.src = src;
   });
+}
+
+async function assetToDataUrl(src) {
+  const response = await fetch(src);
+  if (!response.ok) throw new Error("예제 그림을 불러오지 못했어요.");
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("예제 그림을 읽지 못했어요."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sampleToUploadDataUrl(src, maxSide = 1600) {
+  const source = /\.svg(?:$|\?)/i.test(src) ? await sampleToPng(src) : await assetToDataUrl(src);
+  return shrinkImage(source, maxSide);
 }
 
 function shrinkImage(dataUrl, maxSide = 1280) {
@@ -578,7 +597,7 @@ function homeHtml() {
         </div>
       </div>
 
-      <p class="privacy-note home-note">그림은 이야기와 삽화를 만드는 데 사용되며, 만든 책은 이 브라우저에 보관돼요. 그림이 OpenAI와 Higgsfield에 전송돼요.</p>
+      <p class="privacy-note home-note">그림은 이야기와 삽화를 만드는 데 사용되며, 만든 책은 이 브라우저에 보관돼요. 그림이 OpenAI 또는 Higgsfield에 전송될 수 있어요.</p>
     </div>
   `;
 }
@@ -654,7 +673,7 @@ function uploadHtml() {
           <input type="checkbox" id="privacy-input" ${state.privacyChecked ? "checked" : ""} />
           <span>개인정보가 보이지 않고, 외부 AI 처리 안내를 확인했어요.</span>
         </label>
-        <p class="privacy-note">그림은 이야기 분석을 위해 OpenAI에, 삽화 생성을 위해 Higgsfield에 전송돼요. 앱 서버에는 저장하지 않으며, 만든 책은 이 브라우저에만 보관돼요.</p>
+        <p class="privacy-note">그림은 이야기 분석과 삽화 생성을 위해 OpenAI 또는 Higgsfield에 전송될 수 있어요. 앱 서버에는 저장하지 않으며, 만든 책은 이 브라우저에만 보관돼요.</p>
       </div>
 
       <button class="primary-button" type="submit" ${canSubmitUpload() ? "" : "disabled"} ${state.busy ? "disabled" : ""}>
@@ -1655,6 +1674,7 @@ async function onFileChange(event) {
     state.imageDataUrl = await readFile(file);
     state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
     state.imageName = file.name;
+    state.preferredDiaryText = "";
     state.draftUnsaved = true;
     state.error = "";
   } catch (caught) {
@@ -1666,9 +1686,11 @@ async function onFileChange(event) {
 
 async function useSample() {
   try {
-    state.imageDataUrl = await sampleToPng(demoSampleImagePath(chapterNumber()));
+    const chapter = chapterNumber();
+    state.imageDataUrl = await sampleToUploadDataUrl(demoSampleImagePath(chapter));
     state.imageReferenceDataUrl = await shrinkImage(state.imageDataUrl, 1280);
-    state.imageName = `그림일기_예제_${chapterNumber()}편.png`;
+    state.imageName = `그림일기_예제_${chapter}편.jpg`;
+    state.preferredDiaryText = demoAnalysisFor(chapter).diaryText;
     state.draftUnsaved = true;
     state.privacyChecked = true;
     state.error = "";
@@ -1692,7 +1714,7 @@ async function onAnalyzeSubmit(event) {
       age: state.age,
       chapter: chapterNumber()
     });
-    state.analysis = data.analysis;
+    state.analysis = withPreferredDiaryText(data.analysis, state.preferredDiaryText);
     state.demoMode = Boolean(data.demoMode);
     state.busy = false;
     go("review");
@@ -1830,6 +1852,7 @@ function resetDrawing() {
   state.imageDataUrl = "";
   state.imageReferenceDataUrl = "";
   state.imageName = "";
+  state.preferredDiaryText = "";
   state.draftUnsaved = false;
   state.privacyChecked = false;
   state.analysis = null;
@@ -1850,7 +1873,7 @@ async function startFriendBook(seed) {
   try {
     const chapters = await Promise.all(
       seed.chapters.map(async (chapter) => ({
-        imageDataUrl: await shrinkImage(await sampleToPng(chapter.imagePath)),
+        imageDataUrl: await sampleToUploadDataUrl(chapter.imagePath),
         analysis: chapter.analysis,
         story: chapter.story,
         author: seed.authorName

@@ -35,15 +35,15 @@ describe("demo branching", () => {
     expect(byCard.pages[0].ko).toContain(card.ko);
     expect(byCard.pages[0].en).toContain(card.en);
 
-    const byVoice = createDemoEnding({ ...meta, choice: { ko: "조개랑 숨바꼭질", en: "", byVoice: true } });
-    expect(byVoice.pages[0].ko).toContain("조개랑 숨바꼭질");
-    expect(byVoice.pages[0].en).not.toContain("조개");
-    expect(byVoice.summaryKo).toContain("조개랑 숨바꼭질");
+    const byVoice = createDemoEnding({ ...meta, choice: { ko: "차 안에서 숨바꼭질", en: "", byVoice: true } });
+    expect(byVoice.pages[0].ko).toContain("차 안에서 숨바꼭질");
+    expect(byVoice.pages[0].en).not.toContain("차 안");
+    expect(byVoice.summaryKo).toContain("차 안에서 숨바꼭질");
   });
 
   it("시작과 끝을 합치면 4페이지 이야기와 아이 선택이 남는다", () => {
     const opening = createDemoOpening(meta);
-    const choice = { ko: "조개랑 숨바꼭질", en: "", byVoice: true };
+    const choice = { ko: "차 안에서 숨바꼭질", en: "", byVoice: true };
     const story = combineStory(opening, createDemoEnding({ ...meta, choice }), choice);
     expect(story.pages).toHaveLength(4);
     expect(story.choice).toEqual(choice);
@@ -68,7 +68,7 @@ describe("normalize", () => {
   it("뒷이야기 페이지가 모자라면 예제로 채운다", () => {
     const ending = normalizeEnding(
       { pages: [{ ko: "새 3페이지", en: "New page 3", words: [], focus: { x: 150, y: -5 } }] },
-      { ...meta, choice: { ko: "조개 소리 들어보기", en: "Listen to the shell", byVoice: false } }
+      { ...meta, choice: { ko: "새 장소 찾아가기", en: "Find a new place", byVoice: false } }
     );
     expect(ending.pages).toHaveLength(2);
     expect(ending.pages[0].ko).toBe("새 3페이지");
@@ -95,10 +95,10 @@ describe("normalize", () => {
     expect(byCard.parentNoteKo).toContain(card.ko);
     expect(byCard.parentNoteKo).toContain("골랐어요");
 
-    const byVoice = createDemoEnding({ ...meta, choice: { ko: "조개랑 숨바꼭질", en: "", byVoice: true } });
+    const byVoice = createDemoEnding({ ...meta, choice: { ko: "차 안에서 숨바꼭질", en: "", byVoice: true } });
     expect(byVoice.parentNoteKo).toContain("말했어요");
 
-    const story = combineStory(opening, byVoice, { ko: "조개랑 숨바꼭질", en: "", byVoice: true });
+    const story = combineStory(opening, byVoice, { ko: "차 안에서 숨바꼭질", en: "", byVoice: true });
     expect(story.parentNoteKo).toBe(byVoice.parentNoteKo);
   });
 });

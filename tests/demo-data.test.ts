@@ -27,12 +27,12 @@ describe("createDemoStory", () => {
   });
 
   it("아이 이름의 받침에 맞는 한국어 조사를 사용한다", () => {
-    expect(story.titleKo).toBe("수민이와 조개의 비밀");
-    expect(story.pages[0].ko).toContain("수민이는 엄마와");
+    expect(story.titleKo).toBe("수민이와 신나는 여행");
+    expect(story.pages[0].ko).toContain("수민이는 가족과");
 
     const vowelNameStory = createDemoStory({ nickname: "지우", age: 7 });
-    expect(vowelNameStory.titleKo).toBe("지우와 조개의 비밀");
-    expect(vowelNameStory.pages[0].ko).toContain("지우는 엄마와");
+    expect(vowelNameStory.titleKo).toBe("지우와 신나는 여행");
+    expect(vowelNameStory.pages[0].ko).toContain("지우는 가족과");
   });
 
   it("이어 쓰기용 예제를 1~4편까지 제공한다", () => {
@@ -45,8 +45,8 @@ describe("createDemoStory", () => {
       expect(demoAnalysisFor(chapter).place.length).toBeGreaterThan(0);
     });
     expect(createDemoStory({ nickname: "수민", chapter: 4 }).pages[3].ko).toContain("끝");
-    expect(demoSampleImagePath(1)).toBe("/sample-drawing.svg");
-    expect(demoSampleImagePath(3)).toBe("/sample-drawing-3.svg");
-    expect(demoSampleImagePath(9)).toBe("/sample-drawing-4.svg");
+    expect(demoSampleImagePath(1)).toBe("/sample-trip-1.jpeg");
+    expect(demoSampleImagePath(3)).toBe("/sample-trip-3.jpeg");
+    expect(demoSampleImagePath(9)).toBe("/sample-trip-4.jpeg");
   });
 });

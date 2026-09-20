@@ -32,10 +32,11 @@ API 키가 없어도 `예제로 시작하기`를 누르면 5단계 전체를 시
 
 ```env
 OPENAI_API_KEY=본인의_키
-HF_CREDENTIALS=키_ID:키_SECRET
+IMAGE_PROVIDER=openai # openai 또는 higgsfield
+HF_CREDENTIALS=키_ID:키_SECRET # IMAGE_PROVIDER=higgsfield일 때만 필요
 ```
 
-OpenAI는 그림 분석과 이야기 생성에, Higgsfield는 아이 그림을 참조한 페이지 삽화 생성에 사용합니다. 키는 결제와 연결된 비밀 출입증입니다. GitHub, 카카오톡, 채팅방에 올리지 마세요.
+OpenAI는 그림 분석과 이야기 생성에 사용합니다. 페이지 삽화 생성은 기본적으로 OpenAI를 쓰고, `IMAGE_PROVIDER=higgsfield`로 바꾸면 Higgsfield를 사용합니다. 키는 결제와 연결된 비밀 출입증입니다. GitHub, 카카오톡, 채팅방에 올리지 마세요.
 
 ## 자동 확인
 
@@ -48,7 +49,7 @@ npm test
 - 실명 대신 별명만 받습니다.
 - 그림과 이야기를 데이터베이스에 저장하지 않습니다.
 - 얼굴, 학교명, 주소, 연락처가 보이는 그림은 올리지 않도록 안내합니다.
-- 업로드 이미지는 분석을 위해 OpenAI에, 삽화 생성을 위해 Higgsfield에 전송되며 앱 서버에는 저장하지 않습니다.
+- 업로드 이미지는 분석과 삽화 생성을 위해 OpenAI 또는 Higgsfield에 전송될 수 있으며 앱 서버에는 저장하지 않습니다.
 
 ## 프로젝트 문서
 
@@ -61,6 +62,6 @@ npm test
 
 - Node.js 기본 http 서버 (빌드 단계 없음)
 - 바닐라 자바스크립트 ES 모듈
-- OpenAI Responses API (그림 분석과 이야기)
-- Higgsfield Qwen Image 3 Edit (원본 그림 참조 기반 페이지 삽화)
+- OpenAI Responses API (그림 분석, 이야기, 원본 그림 참조 기반 페이지 삽화)
+- Higgsfield Qwen Image Edit (선택형 원본 그림 참조 기반 페이지 삽화)
 - Vitest

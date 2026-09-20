@@ -7,6 +7,7 @@ import { buildAnalysisPrompt, buildEndingPrompt, buildOpeningPrompt } from "./pu
 import { createDemoEnding, createDemoOpening, demoAnalysis, demoAnalysisFor } from "./public/shared/demo-data.js";
 import { validateImageDataUrl } from "./public/shared/image-validation.js";
 import { buildHiggsfieldPagePrompt, generateHiggsfieldPageImage, hasHiggsfieldCredentials } from "./lib/higgsfield.js";
+import { buildOpenAIPagePrompt, generateOpenAIPageImage } from "./lib/openai-image.js";
 import { hasOpenAIKey, requestOpenAIJson } from "./public/shared/openai.js";
 import { getPageFraming } from "./public/shared/page-composition.js";
 import { parsePreviousChapters } from "./public/shared/previous-chapters.js";
@@ -16,6 +17,7 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(root, "public");
 await loadEnv();
 const port = Number(process.env.PORT || 3000);
+const imageProvider = process.env.IMAGE_PROVIDER === "higgsfield" ? "higgsfield" : "openai";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -359,7 +361,7 @@ async function generatePageImages(payload, story) {
 async function generatePageImage(payload, page, index) {
   const analysis = payload.analysis || {};
   const composition = getPageFraming(index);
-  const prompt = buildHiggsfieldPagePrompt({
+  const promptParams = {
     characters: analysis.characters || [payload.characterName || payload.characterIdentity].filter(Boolean),
     place: analysis.place || payload.theme,
     objects: analysis.objects || [],
@@ -367,8 +369,11 @@ async function generatePageImage(payload, page, index) {
     visualDescription: page.visualDescription || page.en || page.ko,
     pageNumber: index + 1,
     framing: page.framing || composition.framing
-  });
-  return generateHiggsfieldPageImage({ imageDataUrl: payload.imageDataUrl, prompt });
+  };
+  const prompt = imageProvider === "higgsfield" ? buildHiggsfieldPagePrompt(promptParams) : buildOpenAIPagePrompt(promptParams);
+  return imageProvider === "higgsfield"
+    ? generateHiggsfieldPageImage({ imageDataUrl: payload.imageDataUrl, prompt })
+    : generateOpenAIPageImage({ imageDataUrl: payload.imageDataUrl, prompt });
 }
 
 /* ------------------------------------------------------------------ */
@@ -481,7 +486,7 @@ async function handleStory(req, res) {
   }
 }
 
-/** 현재 쪽과 다음 쪽을 Higgsfield 이미지 편집 모델로 만든다. */
+/** 현재 쪽과 다음 쪽을 OpenAI 이미지 생성 모델로 만든다. */
 async function handlePageArt(req, res) {
   try {
     const body = await readBody(req);
@@ -500,13 +505,17 @@ async function handlePageArt(req, res) {
     const pageIndex = Math.max(0, Number(body.pageIndex) || 0);
     const { framing, textSide } = getPageFraming(pageIndex);
 
-    if (!hasHiggsfieldCredentials()) {
+    if (imageProvider === "higgsfield" && !hasHiggsfieldCredentials()) {
       sendJson(res, 503, { error: "Higgsfield 인증 정보가 설정되지 않았어요.", framing, textSide });
+      return;
+    }
+    if (imageProvider === "openai" && !hasOpenAIKey()) {
+      sendJson(res, 503, { error: "OpenAI API 키가 설정되지 않았어요.", framing, textSide });
       return;
     }
 
     const analysis = normalizeAnalysis(body.analysis);
-    const prompt = buildHiggsfieldPagePrompt({
+    const promptParams = {
       characters: analysis.characters,
       place: analysis.place,
       objects: analysis.objects,
@@ -514,9 +523,12 @@ async function handlePageArt(req, res) {
       visualDescription: typeof body.visualDescription === "string" ? body.visualDescription.slice(0, 240) : "",
       pageNumber: pageIndex + 1,
       framing
-    });
-    const generatedImage = await generateHiggsfieldPageImage({ imageDataUrl, prompt });
-    sendJson(res, 200, { imageDataUrl: generatedImage, demoMode: false, framing, textSide });
+    };
+    const prompt = imageProvider === "higgsfield" ? buildHiggsfieldPagePrompt(promptParams) : buildOpenAIPagePrompt(promptParams);
+    const generatedImage = imageProvider === "higgsfield"
+      ? await generateHiggsfieldPageImage({ imageDataUrl, prompt })
+      : await generateOpenAIPageImage({ imageDataUrl, prompt });
+    sendJson(res, 200, { imageDataUrl: generatedImage, demoMode: false, framing, textSide, imageProvider });
   } catch (error) {
     console.error("page art failed:", error);
     sendJson(res, 502, { error: "삽화를 만들지 못했어요. 잠시 후 다시 시도해 주세요." });

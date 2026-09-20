@@ -23,6 +23,8 @@ describe("AI prompts", () => {
     expect(prompt).toContain("exact action, characters, setting, and relevant objects");
     expect(prompt).toContain("Refer to characters by their visual appearance, not by writing their names");
     expect(prompt).toContain("never dialogue or conversation bubbles");
+    expect(prompt).toContain("not a hard reset");
+    expect(prompt).toContain("clear bridge the child can draw next on paper");
     expect(prompt).toContain("iconKey");
     expect(prompt).toContain("exact list only");
     expect(prompt).not.toContain("Previous chapters");
@@ -32,21 +34,22 @@ describe("AI prompts", () => {
     const prompt = buildEndingPrompt({
       ...base,
       opening: createDemoOpening({ nickname: "수민" }),
-      choice: { ko: "조개에게 노래 불러주기", en: "Sing to the shell", byVoice: false }
+      choice: { ko: "차 안에서 노래하기", en: "Sing in the car", byVoice: false }
     });
     expect(prompt).toContain("exactly 2 pages: pages 3-4");
     expect(prompt).toContain("The child picked this card");
-    expect(prompt).toContain("조개에게 노래 불러주기");
+    expect(prompt).toContain("차 안에서 노래하기");
     expect(prompt).toContain("offline drawing prompt");
     expect(prompt).toContain("summaryKo");
     expect(prompt).toContain("parentNoteKo");
+    expect(prompt).toContain("must carry the child's choice forward");
   });
 
   it("말로 한 선택은 음성 인식 오류 가능성을 알려준다", () => {
     const prompt = buildEndingPrompt({
       ...base,
       opening: createDemoOpening({ nickname: "수민" }),
-      choice: { ko: "조개랑 숨바꼭질", en: "", byVoice: true }
+      choice: { ko: "차 안에서 숨바꼭질", en: "", byVoice: true }
     });
     expect(prompt).toContain("said this idea out loud");
     expect(prompt).toContain("speech recognition may contain small errors");
@@ -56,12 +59,28 @@ describe("AI prompts", () => {
   it("이어 쓰기에는 이전 편 요약과 편 번호를 넣는다", () => {
     const prompt = buildOpeningPrompt({
       ...base,
-      previousChapters: [{ titleKo: "수민이와 조개의 비밀", summaryKo: "노래하는 조개를 찾았다." }]
+      previousChapters: [{ titleKo: "수민이와 신나는 여행", summaryKo: "파란 길을 지나며 다음 장소를 상상했다." }]
     });
     expect(prompt).toContain("chapter 2 of 4");
-    expect(prompt).toContain("수민이와 조개의 비밀 — 노래하는 조개를 찾았다.");
+    expect(prompt).toContain("수민이와 신나는 여행 — 파란 길을 지나며 다음 장소를 상상했다.");
     expect(prompt).toContain("same characters");
+    expect(prompt).toContain("the child's sketch of what happened next");
+    expect(prompt).toContain("Begin this chapter by showing the result of the previous choice");
     expect(prompt).not.toContain("final chapter");
+  });
+
+  it("3편 끝에는 4편 예제 사진과 맞게 가족에게 돌아가 이야기하는 장면을 요청한다", () => {
+    const previousChapters = [1, 2].map((n) => ({ titleKo: `${n}편`, summaryKo: "요약" }));
+    const prompt = buildEndingPrompt({
+      ...base,
+      previousChapters,
+      opening: createDemoOpening({ nickname: "수민", chapter: 3 }),
+      choice: { ko: "빙글빙글 놀이기구 타기", en: "Ride the spinning ride", byVoice: false }
+    });
+    expect(prompt).toContain("chapter 3 of 4");
+    expect(prompt).toContain("coming back home and telling a parent or family member");
+    expect(prompt).toContain("Do not ask for another amusement-park action");
+    expect(prompt).toContain("ride, or friends' expression");
   });
 
   it("마지막 편은 이야기를 마무리하고 표지 그리기를 제안한다", () => {

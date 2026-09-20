@@ -116,14 +116,14 @@ describe("getRecurringWords", () => {
     expect(getRecurringWords(book)).toHaveLength(5);
   });
 
-  it("실제 예제 이야기 3편을 이어 붙이면 '노란 물고기'로 반복된 fish가 뽑힌다", () => {
+  it("실제 예제 이야기 3편을 이어 붙이면 반복된 friend가 뽑힌다", () => {
     const chapters = [1, 2, 3].map((n) => ({
       imageDataUrl: "data:image/jpeg;base64,AAAA",
       analysis: demoAnalysisFor(n),
       story: createDemoStory({ nickname: "수민", chapter: n })
     }));
     const words = getRecurringWords(bookOf(chapters));
-    expect(words.some((w) => w.en === "fish")).toBe(true);
+    expect(words.some((w) => w.en === "friend")).toBe(true);
   });
 });
 
